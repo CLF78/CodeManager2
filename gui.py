@@ -54,17 +54,17 @@ class CodeList(QtWidgets.QWidget):
         self.Codelist.itemDoubleClicked.connect(handleCodeOpen)
         self.Codelist.itemChanged.connect(self.renameWindows)
 
-        # Create the menu bar
-        self.menuBar = QtWidgets.QMenuBar()
-        self.createMenubar(self.menuBar)
-
         self.addButton = QtWidgets.QPushButton('Add Code')
         self.importButton = QtWidgets.QPushButton('Import List')
         self.removeButton = QtWidgets.QPushButton('Remove Selected')
 
+        self.gidInput = QtWidgets.QLineEdit()
+        self.gidInput.setPlaceholderText('Insert GameID here...')
+        self.gidInput.setMaxLength(6)
+
         # Make a layout and set it
         lyt = QtWidgets.QGridLayout()
-        lyt.addWidget(self.menuBar, 0, 0, 1, 3)
+        lyt.addWidget(self.gidInput, 0, 0, 1, 3)
         lyt.addWidget(self.Codelist, 1, 0, 1, 3)
         lyt.addWidget(self.addButton, 2, 0)
         lyt.addWidget(self.importButton, 2, 1)
@@ -73,29 +73,6 @@ class CodeList(QtWidgets.QWidget):
 
         # Set the window title accordingly
         self.handleWinTitle(wintitle)
-
-    def createMenubar(self, bar):
-        """
-        Sets up the menubar
-        """
-        # File Menu
-        file = bar.addMenu('&File')
-        file.addAction('Add Code')
-        file.addAction('Import from List')
-        file.addAction('Change Game ID')
-
-        # Edit Menu
-        edit = bar.addMenu('&Edit')
-        sort = edit.addMenu('Sort by...')
-        sort.addAction('Alphabetical')
-        sort.addAction('Alphabetical (Reverse)')
-        sort.addAction('Size')
-        edit.addAction('Remove Selected')
-
-        # Code Menu
-        code = bar.addMenu('&Code')
-        code.addAction('Open in Auto-Porter')
-        code.addAction('Open in Disassembler')
 
     def handleWinTitle(self, wintitle, i=0):
         winlist = [window.windowTitle() for window in mainWindow.mdi.subWindowList() if isinstance(window.widget(), CodeList)]
@@ -133,7 +110,7 @@ class CodeList(QtWidgets.QWidget):
         """When you rename a code, the program will look for code viewers that originated from that code and update
         their window title accordingly"""
         codelist = [code for code in self.Codelist.findItems('', Qt.MatchContains | Qt.MatchRecursive) if not code.childCount()]
-        winlist = [window for window in mainWindow.mdi.subWindowList() if isinstance(window.widget(), CodeViewer) and window.widget().parentz in codelist]
+        winlist = [window for window in mainWindow.mdi.subWindowList() if isinstance(window.widget(), CodeEditor) and window.widget().parentz in codelist]
         for window in winlist:
             window.widget().setWindowTitle('Code Viewer - {}'.format(window.widget().parentz.text(0)))
 
@@ -161,7 +138,7 @@ class CodeList(QtWidgets.QWidget):
                         item.takeChild(i)
 
 
-class CodeViewer(QtWidgets.QWidget):
+class CodeEditor(QtWidgets.QWidget):
     """
     A simple window showing the code and its name, author and comment.
     """
@@ -178,7 +155,7 @@ class CodeViewer(QtWidgets.QWidget):
         # Create the code and comment forms and set the window title
         self.CodeContent = QtWidgets.QPlainTextEdit(self.code)
         self.CodeComment = QtWidgets.QPlainTextEdit(self.comment)
-        self.setWindowTitle('Code Viewer - {}'.format(self.name))
+        self.setWindowTitle('Code Editor - {}'.format(self.name))
 
         # Make a layout and set it
         lyt = QtWidgets.QGridLayout()
@@ -348,6 +325,7 @@ class Database(QtWidgets.QWidget):
             win = QtWidgets.QMdiSubWindow()
             win.setWidget(CodeList('New Code List'))
             win.widget().addFromDatabase(enabledlist)
+            win.widget().gidInput.setText(self.gameID)
             win.setAttribute(Qt.WA_DeleteOnClose)
             win.windowStateChanged.connect(updateboxes)
             mainWindow.mdi.addSubWindow(win)
@@ -416,14 +394,14 @@ def handleCodeOpen(item):
     """
     if item and not item.childCount():
         willcreate = True
-        for window in mainWindow.mdi.subWindowList():  # Find if there's an existing CodeViewer with same parent and window title
-            if isinstance(window.widget(), CodeViewer) and window.widget().parentz == item:
+        for window in mainWindow.mdi.subWindowList():  # Find if there's an existing CodeEditor with same parent and window title
+            if isinstance(window.widget(), CodeEditor) and window.widget().parentz == item:
                 willcreate = False
                 mainWindow.mdi.setActiveSubWindow(window)  # This code was already opened, so let's just set the focus on the existing window
                 break
         if willcreate:  # If the code is not already open, go ahead and do it
             win = QtWidgets.QMdiSubWindow()
-            win.setWidget(CodeViewer(item))
+            win.setWidget(CodeEditor(item))
             win.setAttribute(Qt.WA_DeleteOnClose)
             mainWindow.mdi.addSubWindow(win)
             win.show()
