@@ -54,27 +54,60 @@ class CodeList(QtWidgets.QWidget):
         self.Codelist.itemDoubleClicked.connect(handleCodeOpen)
         self.Codelist.itemChanged.connect(self.renameWindows)
 
-        self.addButton = QtWidgets.QPushButton('Add Code')
+        # Import and Remove buttons
         self.importButton = QtWidgets.QPushButton('Import List')
         self.removeButton = QtWidgets.QPushButton('Remove Selected')
+
+        # Add button+menu
+        addMenu = QtWidgets.QMenu()
+        addMenu.addAction('Add Code')
+        addMenu.addAction('Add Category', self.handleAddCategory)
+        self.addButton = QtWidgets.QToolButton()
+        self.addButton.setMenu(addMenu)
+        self.addButton.setFixedHeight(self.importButton.sizeHint().height())  # Makes this the same height as QPushButton
+        self.addButton.setPopupMode(QtWidgets.QToolButton.MenuButtonPopup)
+        self.addButton.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Preferred)  # Makes this the same width as QPushButton
+        self.addButton.setText('Add')
+        self.addButton.setToolButtonStyle(Qt.ToolButtonTextOnly)
+
+        # Sort button+menu
+        sortMenu = QtWidgets.QMenu()
+        sortMenu.addAction('Alphabetical', self.sortListAsc)
+        sortMenu.addAction('Alphabetical (Reverse)', self.sortListDesc)
+        sortMenu.addAction('Size', self.sortListSize)
+        self.sortButton = QtWidgets.QToolButton()
+        self.sortButton.setMenu(sortMenu)
+        self.sortButton.setFixedHeight(self.importButton.sizeHint().height())  # Makes this the same height as QPushButton
+        self.sortButton.setPopupMode(QtWidgets.QToolButton.MenuButtonPopup)
+        self.sortButton.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Preferred)  # Makes this the same width as QPushButton
+        self.sortButton.setText('Sort')
+        self.sortButton.setToolButtonStyle(Qt.ToolButtonTextOnly)
 
         self.gidInput = QtWidgets.QLineEdit()
         self.gidInput.setPlaceholderText('Insert GameID here...')
         self.gidInput.setMaxLength(6)
+        
+        self.lineLabel = QtWidgets.QLabel('Lines: 2')
+        self.lineLabel.setAlignment(Qt.AlignRight)
 
         # Make a layout and set it
         lyt = QtWidgets.QGridLayout()
-        lyt.addWidget(self.gidInput, 0, 0, 1, 3)
-        lyt.addWidget(self.Codelist, 1, 0, 1, 3)
-        lyt.addWidget(self.addButton, 2, 0)
-        lyt.addWidget(self.importButton, 2, 1)
-        lyt.addWidget(self.removeButton, 2, 2)
+        lyt.addWidget(self.gidInput, 0, 0, 1, 2)
+        lyt.addWidget(self.Codelist, 1, 0, 1, 2)
+        lyt.addWidget(self.lineLabel, 2, 0, 1, 2)
+        lyt.addWidget(self.addButton, 3, 0)
+        lyt.addWidget(self.sortButton, 3, 1)
+        lyt.addWidget(self.importButton, 4, 0)
+        lyt.addWidget(self.removeButton, 4, 1)
         self.setLayout(lyt)
 
         # Set the window title accordingly
         self.handleWinTitle(wintitle)
 
     def handleWinTitle(self, wintitle, i=0):
+        """
+        Checks that there isn't a window with the same title. If not, it appends an ever-increasing number to it.
+        """
         winlist = [window.windowTitle() for window in mainWindow.mdi.subWindowList() if isinstance(window.widget(), CodeList)]
         while True:
             i += 1
@@ -94,17 +127,10 @@ class CodeList(QtWidgets.QWidget):
             else:
                 item.setCheckState(0, Qt.Unchecked)
 
+        # This for categories which aren't expanded
         for item in bucketlist:
             if item in self.Codelist.selectedItems() and item.childCount() and not item.isExpanded():
-                self.checkChildren(item)
-
-    def checkChildren(self, item):
-        for i in range(0, item.childCount()):
-            child = item.child(i)
-            if child.childCount():
-                self.checkChildren(child)
-            else:
-                child.setCheckState(0, Qt.Checked)
+                checkChildren(item)
 
     def renameWindows(self):
         """When you rename a code, the program will look for code viewers that originated from that code and update
@@ -115,12 +141,15 @@ class CodeList(QtWidgets.QWidget):
             window.widget().setWindowTitle('Code Viewer - {}'.format(window.widget().parentz.text(0)))
 
     def addFromDatabase(self, enabledlist):
+        """
+        Takes a list of the enabled items and clones it in the codelist.
+        """
         header = self.Codelist.header()
         for item in enabledlist:
             clone = item.clone()
             clone.setFlags(clone.flags() | Qt.ItemIsEditable)
             self.Codelist.addTopLevelItem(clone)
-            self.setMinimumWidth(header.length() + 70)
+            self.setMinimumWidth(header.length() + 70)  # This is in order to leave some padding space
             self.cleanChildren(clone)
 
     def cleanChildren(self, item):
@@ -129,13 +158,48 @@ class CodeList(QtWidgets.QWidget):
         """
         for i in range(0, item.childCount()):
             child = item.child(i)
-            if child:
-                child.setFlags(child.flags() | Qt.ItemIsEditable)
+            if child:  # Failsafe
+                child.setFlags(child.flags() | Qt.ItemIsEditable)  # This flag is not ported over, so we have to add it manually
                 if child.childCount():
                     self.cleanChildren(child)
                 else:
                     if child.checkState(0) == Qt.Unchecked:
                         item.takeChild(i)
+
+    def handleAddCategory(self):
+        """
+        Adds a new category to the codelist
+        """
+        newitem = QtWidgets.QTreeWidgetItem(['New Category'])
+        newitem.setCheckState(0, Qt.Unchecked)
+        newitem.setFlags(newitem.flags() | Qt.ItemIsAutoTristate | Qt.ItemIsEditable)
+        self.Codelist.addTopLevelItem(newitem)
+        self.Codelist.editItem(newitem, 0)  # Let the user rename it immediately
+
+    def sortListAsc(self):
+        self.Codelist.sortItems(0, Qt.AscendingOrder)
+
+    def sortListDesc(self):
+        self.Codelist.sortItems(0, Qt.DescendingOrder)
+
+    def sortListSize(self):
+        """
+        Temporarily removes all items without children, then orders the remaining items alphabetically. The removed
+        items will then be ordered by code size and re-added to the tree.
+        """
+        backuplist = []
+        for item in self.Codelist.findItems('', Qt.MatchContains):
+            if not item.childCount():
+                backuplist.append(self.Codelist.takeTopLevelItem(self.Codelist.indexOfTopLevelItem(item)))
+        self.Codelist.sortItems(0, Qt.AscendingOrder)  # Sort the categories alphabetically
+        backuplist.sort(key=self.sortSizeVal, reverse=True)  # Sort the backup list by code size (bigger codes first)
+        self.Codelist.insertTopLevelItems(len(self.Codelist.findItems('', Qt.MatchContains)), backuplist)  # Reinsert the items
+
+    def sortSizeVal(self, val):
+        """
+        Key used by the above function
+        """
+        return len(val.text(1))
 
 
 class CodeEditor(QtWidgets.QWidget):
@@ -293,23 +357,16 @@ class Database(QtWidgets.QWidget):
             else:
                 item.setCheckState(0, Qt.Unchecked)
 
+        # This for categories which aren't expanded
         for item in bucketlist:
             if item in self.DBrowser.selectedItems() and item.childCount() and not item.isExpanded():
-                self.checkChildren(item)
+                checkChildren(item)
 
         if len(self.countCheckedCodes()) > 0:
             self.AddButton.setEnabled(True)
         else:
             self.AddButton.setEnabled(False)
         updateboxes()
-
-    def checkChildren(self, item):
-        for i in range(0, item.childCount()):
-            child = item.child(i)
-            if child.childCount():
-                self.checkChildren(child)
-            else:
-                child.setCheckState(0, Qt.Checked)
 
     def handleAdd(self):
         """
@@ -372,6 +429,18 @@ class MainWindow(QtWidgets.QMainWindow):
             win.setAttribute(Qt.WA_DeleteOnClose)
             self.mdi.addSubWindow(win)
             win.show()
+
+
+def checkChildren(item):
+    """
+    Recursively enables the check on an item's children
+    """
+    for i in range(0, item.childCount()):
+        child = item.child(i)
+        if child.childCount():
+            checkChildren(child)
+        else:
+            child.setCheckState(0, Qt.Checked)
 
 
 def updateboxes():
