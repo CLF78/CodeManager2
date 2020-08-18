@@ -227,7 +227,8 @@ class CodeList(QtWidgets.QWidget):
     def handleImport(self):
         files = QtWidgets.QFileDialog.getOpenFileNames(self, 'Open Files', '',
                                                        'All supported formats (*.txt *.ini *.gct *.dol);;'
-                                                       'Text files (*.txt);;'
+                                                       'Text File (*.txt);;'
+                                                       'Dolphin INI (*.ini);;'
                                                        'Gecko Code Table (*.gct);;'
                                                        'Dolphin Executable (*.dol)')[0]
         for file in files:
