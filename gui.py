@@ -1,4 +1,6 @@
+import re
 import sys
+from chardet import detect
 from lxml import etree
 from PyQt5 import QtWidgets
 from PyQt5.Qt import Qt
@@ -8,6 +10,7 @@ class ModdedTreeWidget(QtWidgets.QTreeWidget):
     """
     This modded tree widget lets me move codes between subwindows without losing data
     """
+
     def __init__(self):
         super().__init__()
 
@@ -46,6 +49,7 @@ class CodeList(QtWidgets.QWidget):
     Codelists are different from databases, as they accept adding/removing, importing/exporting, reordering, dragging
     and more.
     """
+
     def __init__(self, wintitle):
         super().__init__()
 
@@ -89,6 +93,7 @@ class CodeList(QtWidgets.QWidget):
 
         # Import and Remove buttons
         self.importButton = QtWidgets.QPushButton('Import List')
+        self.importButton.clicked.connect(self.handleImport)
         self.exportButton = QtWidgets.QPushButton('Export List')
         self.removeButton = QtWidgets.QPushButton('Remove Selected')
         self.exportButton.setEnabled(False)
@@ -219,6 +224,24 @@ class CodeList(QtWidgets.QWidget):
                     if child.checkState(0) == Qt.Unchecked:
                         item.takeChild(i)
 
+    def handleImport(self):
+        files = QtWidgets.QFileDialog.getOpenFileNames(self, 'Open Files', '',
+                                                       'All supported formats (*.txt *.ini *.gct *.dol);;'
+                                                       'Text files (*.txt);;'
+                                                       'Gecko Code Table (*.gct);;'
+                                                       'Dolphin Executable (*.dol)')[0]
+        for file in files:
+            if '.txt' in file:
+                importTXT(file, self)
+            elif '.ini' in file:
+                print('openini')
+            elif '.gct' in file:
+                print('opengct')
+            elif '.dol' in file:
+                print('opendol')
+            else:
+                print('cannotopenfile')
+
     def handleAddCategory(self):
         """
         Adds a new category to the codelist
@@ -232,7 +255,7 @@ class CodeList(QtWidgets.QWidget):
 
     def handleAddCode(self):
         """
-        Opens a CodeEditor sub-window.
+        Opens an empty CodeEditor sub-window.
         """
         win = QtWidgets.QMdiSubWindow()
         win.setWidget(CodeEditor(None))
@@ -287,6 +310,7 @@ class CodeEditor(QtWidgets.QWidget):
     """
     A simple window showing the code and its name, author and comment.
     """
+
     def __init__(self, parent):
         super().__init__()
 
@@ -317,6 +341,7 @@ class Database(QtWidgets.QWidget):
     """
     Databases are basically read-only lists of codes, which provide extra data to the code manager.
     """
+
     def __init__(self, name):
         super().__init__()
 
@@ -562,8 +587,103 @@ def handleCodeOpen(item):
             win.show()
 
 
+def importTXT(filename, codelist):
+    """
+    Imports a TXT. This took longer than it should have.
+    """
+
+    # Initialize vars
+    gidrule = re.compile('^[\w]{4,6}\b')
+    linerule = re.compile('^(\* )?[\w]{8} [\w]{8}', re.IGNORECASE)
+    parent = None
+    unkcount = 0
+
+    # If the codelist param is not set, we want to create a new window, so do that
+    if not codelist:
+        win = QtWidgets.QMdiSubWindow()
+        win.setWidget(CodeList(filename))
+        codelist = win.widget()
+        win.setAttribute(Qt.WA_DeleteOnClose)
+        win.windowStateChanged.connect(updateboxes)
+        mainWindow.mdi.addSubWindow(win)
+        win.show()
+
+    # Set the tree and lineedit widgets
+    gidinput = codelist.gidInput
+    codelist = codelist.Codelist
+
+    # Open the file
+    with open(filename, 'rb') as f:
+
+        # Read the file, detect its encoding and split it into groups (there's an empty line between each entry)
+        rawdata = f.read()
+        rawdata = rawdata.decode(encoding=detect(rawdata)['encoding'], errors='ignore').split('\r\n' * 2)
+
+        # Begin parsing groups
+        for i, group in enumerate(rawdata):
+            if not i:  # The first group contains the gameid, so check it with regex and set it if it's valid
+                gameid = group.splitlines()[0]
+                if gidinput.text() == 'UNKW00' and re.match(gidrule, gameid):  # Ignore it if the gameid is already set
+                    gidinput.setText(gameid)
+            else:
+                # Initialize vars
+                lines = group.splitlines()
+                name = code = comment = ''
+                isenabled = False
+
+                # Parse the group and match each line with the code line regex
+                for line in lines:
+                    m = re.match(linerule, line)
+
+                    # It's a code line
+                    if m:
+                        if '*' in m[0]:  # Asterisks are used to mark enabled codes, so mark it as such
+                            isenabled = True
+                        code = '\n'.join([code, m[0].replace('* ', '')])
+
+                    # It's not a code line
+                    else:
+                        if name:  # We already have a name set, so add this line to the comment
+                            comment = '\n'.join([comment, line])
+                        else:  # The code doesn't have a name yet, so set it to this line
+                            name = line
+
+                # Failsafe for no name
+                if not name:
+                    name = 'Unknown Code'
+                    if unkcount != 1:
+                        name += str(unkcount)
+                    unkcount += 1
+
+                # Create the tree entry
+                newitem = QtWidgets.QTreeWidgetItem([name])
+
+                # Set the check accordingly
+                if isenabled:
+                    newitem.setCheckState(0, Qt.Checked)
+                else:
+                    newitem.setCheckState(0, Qt.Unchecked)
+
+                # Determine parenthood
+                if parent and code:
+                    parent.addChild(newitem)  # Only nest codes, not categories
+                else:
+                    codelist.addTopLevelItem(newitem)
+
+                # Finally, set the flags and insert the data. What a wild ride.
+                newitem.setFlags(newitem.flags() | Qt.ItemIsEditable)
+                if code:
+                    newitem.setFlags(newitem.flags() ^ Qt.ItemIsDropEnabled)
+                    newitem.setText(1, code[1:])
+                    newitem.setText(2, comment[1:])
+                else:
+                    newitem.setChildIndicatorPolicy(QtWidgets.QTreeWidgetItem.ShowIndicator)
+                    newitem.setFlags(newitem.flags() | Qt.ItemIsAutoTristate)
+                    parent = newitem
+
+
 def main():
-    global mainWindow  # I fucking hate having to add these lines
+    global mainWindow  # Fuck globals, all my homies hate globals
 
     # Start the application
     app = QtWidgets.QApplication(sys.argv)
