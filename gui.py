@@ -675,8 +675,8 @@ def importTXT(filename, codelist):
                 newitem.setFlags(newitem.flags() | Qt.ItemIsEditable)
                 if code:
                     newitem.setFlags(newitem.flags() ^ Qt.ItemIsDropEnabled)
-                    newitem.setText(1, code[1:])
-                    newitem.setText(2, comment[1:])
+                    newitem.setText(1, code[1:].upper())  # Force uppercase, because lowercase sucks.
+                    newitem.setText(2, comment[1:])  # Btw, the first character is a newline, so i'm removing it.
                 else:
                     newitem.setChildIndicatorPolicy(QtWidgets.QTreeWidgetItem.ShowIndicator)
                     newitem.setFlags(newitem.flags() | Qt.ItemIsAutoTristate)
