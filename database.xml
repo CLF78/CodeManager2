@@ -55,7 +55,7 @@ C2790E94 00000002
 				<rawcode>
 048B59F8 XXXXXXXX
 				</rawcode>
-				<placeholder letter="X" type="2" comment="The Bullet Bill's new speed" args="0" recursive="0" />
+				<placeholder letter="X" type="2" comment="The Bullet Bill's new speed" args="0" />
 			</code>
 		</category>
 	</category>
@@ -76,19 +76,19 @@ C2790E94 00000002
 60000000 00000000
 		</rawcode>
 	</code>
-	<code name="Choose Any Position To Start Race As (HOST Only)" author="Vega" comment="This code lets you set your starting position regardless of what position you finished in the previous race. NOTE: If you use this code while not host, it will only take effect in the 1st Race of a Room GP. If you apply an invalid value (such as 5th place in a 2 player room), the code won't take effect in the 1st Race of a Room GP. For all other races, you will simply start in last.">
+	<code name="Change Starting Position (HOST Only)" author="Vega" comment="This code lets you set your starting position regardless of what position you finished in the previous race. NOTE: If you use this code while not host, it will only take effect in the 1st Race of a Room GP. If you apply an invalid value (such as 5th place in a 2 player room), the code won't take effect in the 1st Race of a Room GP. For all other races, you will simply start in last.">
 		<rawcode>
 C26603CC 00000002
 386000XX 987F0019
 7FE3FB78 00000000
 		</rawcode>
-		<placeholder letter="X" type="1" comment="The chosen starting position" args="1,0,1,12" recursive="0" />
+		<placeholder letter="X" type="1" comment="The chosen starting position" args="1,0,1,12" />
 	</code>
 	<code name="Change User Record Game ID" author="Vega" comment="This code lets you set a spoofed Game ID on your user records. If someone is reading them, they will not know the true MKW Disc/ISO that you are on. It's also useful to show your custom line color to the people running Show Everyone's True Region ID.">
 		<rawcode>
 04663164 380000XX
 		</rawcode>
-		<placeholder letter="X" type="3" comment="Last letter of Game ID" args=",1," recursive="0" />
+		<placeholder letter="X" type="3" comment="Last letter of Game ID" args=",1," />
 	</code>
 	<code name="ISFS Delete" author="Vega" comment="This code lets you delete any file/directory from your NAND. Press your activator whenever you want to delete the file/directory (you may notice a small lag spike when this happens, this is normal). CAUTION: Deleting the wrong files may result in a brick.">
 		<rawcode>
@@ -108,7 +108,7 @@ RRRRRRRR RRRRRRRR
 60000000 00000000
 E0000000 80008000
 		</rawcode>
-		<placeholder letter="R" type="3" comment="The path to the file or directory you want want to delete. Make sure it starts with '/'" args=",36," recursive="0" />
+		<placeholder letter="R" type="3" comment="The path to the file or directory you want want to delete. Make sure it starts with '/'" args=",36," />
 	</code>
 	<code name="Text Color Fill Modifier" author="Spaghetti Noppers" comment="This code lets you change the color of the text in game plus its background fill, which turns characters into colorful blocks.">
 		<rawcode>
@@ -117,7 +117,7 @@ E0000000 80008000
 045E7B90 38A000YY
 045E7BB8 388000ZZ
 		</rawcode>
-		<placeholder letter="W" type="4" comment="The fill color." args="1" recursive="0" />
+		<placeholder letter="W" type="4" comment="The fill color." args="1" />
 	</code>
 	<code name="MAC Address Spoofer" author="mdmwii" comment="This code lets you spoof your Wii's MAC address.">
 		<rawcode>
@@ -127,7 +127,7 @@ C21D0E50 00000004
 558C843E B1840004
 38A00006 00000000
 		</rawcode>
-		<placeholder letter="X" type="5" comment="The spoofed MAC address." args="" recursive="0" />
+		<placeholder letter="X" type="5" comment="The spoofed MAC address." args="" />
 	</code>
 </codelist>
 		
