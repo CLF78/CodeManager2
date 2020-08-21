@@ -19,7 +19,7 @@ def DoPreliminaryOperations(filename, codelist):
     """
     # Check if we can read the file. If not, trigger an error message.
     if not os.access(filename, os.R_OK):
-        QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, 'File Read Error', "Couldn't read file " + filename, QtWidgets.QMessageBox.Ok).exec_()
+        FileReadError(filename)
         return None
 
     # If the codelist param is not set, we want to create a new window, so do that
@@ -31,6 +31,10 @@ def DoPreliminaryOperations(filename, codelist):
         win.show()
         return win
     return codelist
+
+
+def FileReadError(filename):
+    QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, 'File Read Error', "Couldn't read file " + filename, QtWidgets.QMessageBox.Ok).exec_()
 
 
 def ImportTXT(filename, codelist):
@@ -46,7 +50,6 @@ def ImportTXT(filename, codelist):
     # Perform the initial operations. If they fail, abort everything.
     codelist = DoPreliminaryOperations(filename, codelist)
     if not codelist:
-        codelist.close()
         return
 
     # Set the tree and lineedit widgets
