@@ -6,7 +6,7 @@ from PyQt5.Qt import Qt
 import globalstuff
 from codelist import CodeList
 from database import Database
-from importing import ImportTXT
+from importing import ImportTXT, ImportINI
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -66,7 +66,7 @@ class MainWindow(QtWidgets.QMainWindow):
             if '.txt' in file:
                 ImportTXT(file, source)
             elif '.ini' in file:
-                print('openini')
+                ImportINI(file, source)
             elif '.gct' in file:
                 print('opengct')
             elif '.dol' in file:
