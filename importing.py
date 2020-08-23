@@ -19,7 +19,7 @@ def DoPreliminaryOperations(filename, codelist):
     """
     # Check if we can read the file. If not, trigger an error message.
     if not os.access(filename, os.R_OK):
-        FileReadError(filename)
+        QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, 'File Read Error', "Couldn't read file " + filename, QtWidgets.QMessageBox.Ok).exec_()
         return None
 
     # If the codelist param is not set, we want to create a new window, so do that
@@ -31,10 +31,6 @@ def DoPreliminaryOperations(filename, codelist):
         win.show()
         return win
     return codelist
-
-
-def FileReadError(filename):
-    QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, 'File Read Error', "Couldn't read file " + filename, QtWidgets.QMessageBox.Ok).exec_()
 
 
 def ImportTXT(filename, codelist):
@@ -210,3 +206,71 @@ def ImportINI(filename, codelist):
 
         # Finally, add all the newly created widgets to the codelist. Insert obligatory "Fuck Dolphin" here.
         codelist.addTopLevelItems(entrylist)
+
+
+def ImportGCT(filename, codelist):
+    """
+    ImportTXT's genetically damaged brother. He's a real retard.
+    """
+
+    # Perform the initial operations. If they fail, abort everything.
+    codelist = DoPreliminaryOperations(filename, codelist)
+    if not codelist:
+        return
+
+    # Do the parsing
+    with open(filename, 'rb') as f:
+        if f.read(8) == b'\0\xd0\xc0\xde' * 2:  # Check for the magic
+            f.seek(-8, 2)  # Go to the end of the file
+            if f.read() == b'\xf0' + b'\0' * 7:  # If the "Codelist End" is at the end of the file, we have a regular GCT
+                f.seek(0)  # Go back to the beginning
+                ParseGCT(os.path.splitext(os.path.basename(filename))[0], codelist, f.read())
+                return
+        else:
+            # This ain't it, chief
+            codelist.close()
+            QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, 'Invalid File', 'This file is not a GCT', QtWidgets.QMessageBox.Ok).exec_()
+            return
+
+        # Set the lineedit widget
+        gidinput = codelist.widget().gidInput
+        codelist = codelist.widget().Codelist
+
+        # The following is for GCTs following the BrawlBox extended format
+
+        # First, let's find the codelist end
+        f.seek(0)  # Go back to the beginning of the file
+        while True:
+            if f.read(8) == b'\xf0' + b'\0' * 7:
+                f.seek(4, 1)
+                backupoffset = f.tell()  # Saving this for when i need to go back
+                break
+
+        # TODO: CHECK WHAT HAPPENS IF GID IS NOT SET
+        # Now let's find the the game id
+        gameid = ''
+        f.seek(int.from_bytes(f.read(4), 'big')-8, 1)
+        # Why '-8'?
+        # First, the offset is according to the entry's beginning (aka the game name which we skipped)
+        # Secondly, the seek needs to be re-adjusted due to the read operation
+        while True:
+            char = f.read(1)
+            if char == b'\0':
+                break
+            gameid += char.decode('utf-8')
+
+        # Verify the gameid's validity
+        if 4 <= len(gameid) <= 6:
+            gidinput.setText(gameid)
+
+        # Read the amount of codes
+        f.seek(backupoffset)  # Go back
+        f.seek(4, 1)
+        amount = int.from_bytes(f.read(4), 'big')
+        backupoffset = f.tell()
+
+        # Incomplete, fuck me in the ass
+
+
+def ParseGCT(filename, codelist, file):
+    print('Sware noob')
