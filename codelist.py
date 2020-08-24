@@ -24,7 +24,7 @@ class CodeList(QtWidgets.QWidget):
 
         # Merge button, up here for widget height purposes
         self.mergeButton = QtWidgets.QPushButton('Merge Selected')
-        self.mergeButton.clicked.connect(self.HandleMerge)
+        self.mergeButton.clicked.connect(lambda: self.HandleMerge(CountCheckedCodes(self.Codelist, False)))
 
         # Add button+menu
         addMenu = QtWidgets.QMenu()
@@ -179,12 +179,12 @@ class CodeList(QtWidgets.QWidget):
         backuplist.sort(key=lambda x: len(x.text(1)), reverse=True)  # Sort the backup list by code size (bigger codes first)
         self.Codelist.insertTopLevelItems(len(self.Codelist.findItems('', Qt.MatchContains)), backuplist)  # Reinsert the items
 
-    def HandleMerge(self):
+    def HandleMerge(self, mergedlist):
         """
         Merges codes together
         """
         destination = None
-        for item in CountCheckedCodes(self.Codelist, False):
+        for item in mergedlist:
             if item.text(1) and not destination:  # It's the first code in the list, set it as destination
                 destination = item
                 destination.setText(2, '')  # Clear the comment and the placeholder lists, as they no longer apply

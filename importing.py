@@ -121,9 +121,6 @@ def ImportINI(filename, codelist):
     """
     ImportTXT's uglier brother. Also, Dolphin is an asshole.
     """
-    # Initialize vars
-    gidrule = re.compile('^[\w]{4,6}$')
-
     # Perform the initial operations. If they fail, abort everything.
     codelist = DoPreliminaryOperations(filename, codelist)
     if not codelist:
@@ -135,7 +132,7 @@ def ImportINI(filename, codelist):
 
     # Set the gameID
     gameid = os.path.splitext(os.path.basename(filename))[0]  # Remove the file extension
-    if re.match(gidrule, gameid):
+    if 4 <= len(gameid) <= 6:
         gidinput.setText(gameid)
 
     # Open the file
@@ -210,9 +207,8 @@ def ImportINI(filename, codelist):
 
 def ImportGCT(filename, codelist):
     """
-    ImportTXT's genetically damaged brother. He's a real retard.
+    ImportTXT's siamese twins.
     """
-
     # Perform the initial operations. If they fail, abort everything.
     codelist = DoPreliminaryOperations(filename, codelist)
     if not codelist:
@@ -222,55 +218,215 @@ def ImportGCT(filename, codelist):
     with open(filename, 'rb') as f:
         if f.read(8) == b'\0\xd0\xc0\xde' * 2:  # Check for the magic
             f.seek(-8, 2)  # Go to the end of the file
-            if f.read() == b'\xf0' + b'\0' * 7:  # If the "Codelist End" is at the end of the file, we have a regular GCT
+
+            # If the "Codelist End" is at the end of the file, we have a regular GCT
+            if f.read() == b'\xf0' + b'\0' * 7:
                 f.seek(0)  # Go back to the beginning
-                ParseGCT(os.path.splitext(os.path.basename(filename))[0], codelist, f.read())
-                return
+                ParseGCT(os.path.splitext(os.path.basename(filename))[0], f, codelist)
+
+            # Otherwise we have an extended GCT
+            else:
+                f.seek(0)  # Go back to the beginning
+                ParseExtendedGCT(f, codelist)
         else:
             # This ain't it, chief
             codelist.close()
             QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, 'Invalid File', 'This file is not a GCT', QtWidgets.QMessageBox.Ok).exec_()
-            return
 
-        # Set the lineedit widget
-        gidinput = codelist.widget().gidInput
-        codelist = codelist.widget().Codelist
 
-        # The following is for GCTs following the BrawlBox extended format
+def ParseExtendedGCT(f, codelist):
+    """
+    BrawlBox allows you to store code names and offsets in the GCT. So, this is for GCTs using that feature.
+    """
+    # Initialize vars
+    backupoffset = 0
 
-        # First, let's find the codelist end
-        f.seek(0)  # Go back to the beginning of the file
-        while True:
-            if f.read(8) == b'\xf0' + b'\0' * 7:
-                f.seek(4, 1)
-                backupoffset = f.tell()  # Saving this for when i need to go back
-                break
+    # Set the lineedit widget
+    gidinput = codelist.widget().gidInput
+    listwidget = codelist.widget().Codelist
 
-        # TODO: CHECK WHAT HAPPENS IF GID IS NOT SET
-        # Now let's find the the game id
-        gameid = ''
-        f.seek(int.from_bytes(f.read(4), 'big')-8, 1)
-        # Why '-8'?
-        # First, the offset is according to the entry's beginning (aka the game name which we skipped)
-        # Secondly, the seek needs to be re-adjusted due to the read operation
-        while True:
+    # First, let's get the file's length
+    f.seek(0, 2)
+    filelen = f.tell()
+    f.seek(0)
+
+    # Now, let's find the codelist end
+    while f.tell() < filelen:
+        if f.read(8) == b'\xf0' + b'\0' * 7:
+            f.seek(4, 1)
+            backupoffset = f.tell()  # Saving this for when i need to go back
+            break
+
+    # Failsafe time
+    if f.tell() == filelen:
+        codelist.close()
+        QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, 'Invalid File', 'This file is not a GCT', QtWidgets.QMessageBox.Ok).exec_()
+        return
+
+    # Now let's find the game id
+    gameid = ''
+    f.seek(int.from_bytes(f.read(4), 'big')-8, 1)  # Adjusting by 8 as the offset is according to the entry's beginning
+    # (aka the game name which we skipped), and the seek needs to be re-adjusted due to the read operation
+
+    # Get the string
+    while f.tell() < filelen:
+        char = f.read(1)
+        if char == b'\0':
+            break
+        gameid += char.decode('utf-8')
+
+    # Verify the gameid's validity
+    if 4 <= len(gameid) <= 6:
+        gidinput.setText(gameid)
+
+    # Read the amount of codes
+    f.seek(backupoffset)  # Go back
+    f.seek(4, 1)
+    amount = int.from_bytes(f.read(4), 'big')
+
+    # Begin reading codes!
+    while amount > 0:
+        # Read the offsets
+        codeoffs = int.from_bytes(f.read(4), 'big')
+        codelen = int.from_bytes(f.read(4), 'big')
+        nameoffs = f.tell() + int.from_bytes(f.read(4), 'big') - 8
+        commentoffs = f.tell() + int.from_bytes(f.read(4), 'big') - 12
+        if commentoffs < f.tell():  # If there's no comment, the value is 0, so if we subtract 12 we'll be at a smaller offset
+            commentoffs = 0
+        backupoffset = f.tell()
+
+        # Go to the code and read it
+        f.seek(codeoffs)
+        code = f.read(codelen * 8).hex().upper()  # Convert to uppercase string
+
+        # Split the code with space and newlines
+        assembledcode = ''
+        for index, char in enumerate(code):
+            if index % 16 == 0 and index:
+                assembledcode = '\n'.join([assembledcode, char])
+            elif index % 8 == 0 and index:
+                assembledcode = ' '.join([assembledcode, char])
+            else:
+                assembledcode = ''.join([assembledcode, char])
+
+        # Go to the code name and read it
+        codename = ''
+        f.seek(nameoffs)
+        while f.tell() < filelen:
             char = f.read(1)
             if char == b'\0':
                 break
-            gameid += char.decode('utf-8')
+            codename += char.decode('utf-8')
 
-        # Verify the gameid's validity
-        if 4 <= len(gameid) <= 6:
-            gidinput.setText(gameid)
+        # Go the comment and read it
+        comment = ''
+        if commentoffs:
+            f.seek(commentoffs)
+            while f.tell() < filelen:
+                char = f.read(1)
+                if char == b'\0':
+                    break
+                comment += char.decode('utf-8')
 
-        # Read the amount of codes
-        f.seek(backupoffset)  # Go back
-        f.seek(4, 1)
-        amount = int.from_bytes(f.read(4), 'big')
-        backupoffset = f.tell()
+        # Create the tree widget
+        newitem = ModdedTreeWidgetItem(codename, False, True)
+        newitem.setText(1, assembledcode)
+        newitem.setText(2, comment)
+        listwidget.addTopLevelItem(newitem)
 
-        # Incomplete, fuck me in the ass
+        # Go back to the offset we backed up earlier
+        f.seek(backupoffset)
+        amount -= 1
 
 
-def ParseGCT(filename, codelist, file):
-    print('Sware noob')
+def ParseGCT(filename, f, codelist):
+    """
+    This GCT parser is for the normal format. It tries to split codes according to the codetypes.
+    """
+    # Initialize vars
+    currentcode = False
+    amount = 0
+    unkcount = 0
+    finalist = []
+
+    # Set the lineedit widget
+    gidinput = codelist.widget().gidInput
+    listwidget = codelist.widget().Codelist
+
+    # First, let's get the file's length
+    f.seek(0, 2)
+    filelen = f.tell() - 8  # Ignore the F0 line
+    f.seek(8)  # Go back to the beginning and skip the GCT magic
+
+    # Verify the gameid's validity
+    if 4 <= len(filename) <= 6:
+        gidinput.setText(filename)
+
+    # Begin reading the GCT!
+    while f.tell() < filelen:
+        # Read the next line and get its first byte
+        line = f.read(8)
+        c = int(hex(line[0]), 16)
+
+        # If we are currently in a code
+        if currentcode:
+            # If we have exhausted the amount of lines specified or we meet an "E0" line, don't add anymore lines
+            if amount == 0 or (amount == -1 and c == 224):
+                currentcode = False
+
+            # Add the line. Yes PyCharm, i know newitem could be referenced before assignment, but currentcode is never
+            # true when the loop begins, so shut the fuck up.
+            newitem.setText(1, newitem.text(1) + line.hex().upper())
+            if amount > 0:
+                amount -= 1
+
+        # It's a new code!
+        else:
+            # Create the tree widget item
+            unkcount += 1
+            if unkcount == 1:
+                newitem = ModdedTreeWidgetItem('Unknown Code', False, True)
+            else:
+                newitem = ModdedTreeWidgetItem('Unknown Code ' + str(unkcount), False, True)
+            newitem.setText(1, line.hex().upper())
+            finalist.append(newitem)
+
+            # Check the codetype. If the line isn't listed here, it will be added as a single line if found standalone.
+            # Type 06 (length specified by code)
+            if c == 6 or c == 7:
+                lines = int(line[7:].hex(), 16)
+                if lines % 8:  # This is so that half-lines are counted properly
+                    lines += 7
+                amount = lines // 8 - 1
+                currentcode = True
+
+            # Type 08 (fixed length)
+            elif c == 8 or c == 9:
+                currentcode = True
+
+            # Type 20-2F, 40, 42, 48, 4A, A8-AE, F6 (add lines until we find an E0 line)
+            elif 32 <= c <= 47 or c == 68 or c == 70 or c == 72 or c == 74 or 168 <= c <= 174 or c == 246:
+                amount = -1
+                currentcode = True
+
+            # Type C0/C2, F2 (length specified by code)
+            elif c == 192 or c == 194 or c == 195 or c == 242:
+                amount = int(line[7:].hex(), 16) - 1
+                currentcode = True
+
+    # Add spaces and newlines to the codes
+    for item in finalist:
+        assembledcode = ''
+        for index, char in enumerate(item.text(1)):
+            if not index % 16 and index:
+                assembledcode = '\n'.join([assembledcode, char])
+            elif not index % 8 and index:
+                assembledcode = ' '.join([assembledcode, char])
+            else:
+                assembledcode = ''.join([assembledcode, char])
+        item.setText(1, assembledcode)
+
+    # Add the codes to the widget
+    listwidget.addTopLevelItems(finalist)
+
+    # TODO: LOOK UP DATABASES AND APPLY NAMES, CODES WITH THE SAME NAME ARE TO BE MERGED
