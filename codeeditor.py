@@ -15,18 +15,22 @@ class CodeEditor(QtWidgets.QWidget):
         # Initialize vars
         self.parentz = parent  # This is named parentz due to a name conflict
         self.name = 'New Code'
-        self.code = self.comment = self.placeholders = ''
+        self.code = self.comment = self.placeholders = self.author = ''
 
         if self.parentz:
             self.name = parent.text(0)
             self.code = parent.text(1)
             self.comment = parent.text(2)
             self.placeholders = parent.text(3)
+            self.author = parent.text(4)
 
         # Create the code and comment forms and set the window title
         self.CodeContent = QtWidgets.QPlainTextEdit(self.code)
         self.CodeComment = QtWidgets.QPlainTextEdit(self.comment)
-        self.setWindowTitle('Code Editor - {}'.format(self.name))
+        if self.author:
+            self.setWindowTitle('Code Editor - {} [{}]'.format(self.name, self.author))
+        else:
+            self.setWindowTitle('Code Editor - {}'.format(self.name))
 
         # Make a layout and set it
         lyt = QtWidgets.QGridLayout()

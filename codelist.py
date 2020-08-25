@@ -152,7 +152,7 @@ class CodeList(QtWidgets.QWidget):
 
     def RenameWindows(self, item):
         """
-        When you rename a code, the program will look for code viewers that originated from that code and update their
+        When you rename a code, the program will look for code editors that originated from that code and update their
         window title accordingly
         """
         # First, verify that the name is not empty. If so, restore the original string and clear the backup.
@@ -163,7 +163,10 @@ class CodeList(QtWidgets.QWidget):
 
         # Do the rename
         for window in [window for window in globalstuff.mainWindow.mdi.subWindowList() if isinstance(window.widget(), CodeEditor) and window.widget().parentz == item]:
-            window.widget().setWindowTitle('Code Viewer - {}'.format(item.text(0)))
+            if item.text(4):
+                window.widget().setWindowTitle('Code Editor - {} [{}]'.format(item.text(0), item.text(4)))
+            else:
+                window.widget().setWindowTitle('Code Editor - {}'.format(item.text(0)))
 
     def HandleAddCategory(self):
         """

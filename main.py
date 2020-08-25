@@ -1,3 +1,4 @@
+import re
 import sys
 
 from PyQt5 import QtWidgets
@@ -84,6 +85,33 @@ class MainWindow(QtWidgets.QMainWindow):
                 database.Combox.clear()
                 database.Combox.addItem('Create New Codelist')
                 database.Combox.addItems(entries)
+
+    def CodeLookup(self, item, codelist, gid):
+        """
+        Looks for a possible match in opened windows with the same game id.
+        """
+        # Build window list
+        wlist = [window.widget().DBrowser for window in self.mdi.subWindowList() if isinstance(window.widget(), Database) and window.widget().gameID == gid] + \
+                [window.widget().Codelist for window in self.mdi.subWindowList() if isinstance(window.widget(), CodeList) and window.widget().Codelist is not codelist and window.widget().gidInput.text() == gid]
+
+        # Initialize vars
+        lsplt = re.split(' |\n', item.text(1))
+        totalen = len(lsplt)
+
+        # Begin search! If a code matches by more than 66%, it will be counted as a full match.
+        for widget in wlist:
+            for child in widget.findItems('', Qt.MatchContains | Qt.MatchRecursive):
+                txt = child.text(1)
+                if txt:
+                    matches = 0
+                    for line in lsplt:
+                        if line in txt:
+                            matches += 1
+                        if matches / totalen >= 2 / 3:
+                            item.setText(0, child.text(0) + '*')
+                            item.setText(2, child.text(2))  # Copy comment
+                            item.setText(4, child.text(4))  # Copy author
+                            return
 
 
 def main():

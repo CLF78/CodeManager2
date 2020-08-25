@@ -33,6 +33,17 @@ def DoPreliminaryOperations(filename, codelist):
     return codelist
 
 
+def GameIDMismatch():
+    msgbox = QtWidgets.QMessageBox()
+    msgbox.setIcon(QtWidgets.QMessageBox.Question)
+    msgbox.setWindowTitle('Game ID Mismatch')
+    msgbox.setText("The Game ID in this codelist doesn't match this file's. Do you want to continue?")
+    msgbox.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
+    msgbox.setDefaultButton(QtWidgets.QMessageBox.Yes)
+    ret = msgbox.exec_()
+    return ret
+
+
 def ImportTXT(filename, codelist):
     """
     Imports a TXT. This took longer than it should have.
@@ -56,6 +67,8 @@ def ImportTXT(filename, codelist):
     with open(filename, 'rb') as f:
 
         # Read the file, detect its encoding and split it into groups (there's an empty line between each entry)
+        # This is done because the original Code Manager saves in UTF-16, which would fuck up the formatting if left
+        # undetected.
         rawdata = f.read()
         rawdata = rawdata.decode(encoding=detect(rawdata)['encoding'], errors='ignore').split('\r\n' * 2)
 
@@ -63,12 +76,17 @@ def ImportTXT(filename, codelist):
         for i, group in enumerate(rawdata):
             if not i:  # The first group contains the gameid, so check it with regex and set it if it's valid
                 gameid = group.splitlines()[0]
-                if gidinput.text() == 'UNKW00' and re.match(gidrule, gameid):  # Ignore it if the gameid is already set
-                    gidinput.setText(gameid)
+                if re.match(gidrule, gameid):
+                    if not gidinput.text() == 'UNKW00' and gidinput.text() != gameid:
+                        ret = GameIDMismatch()  # Raise awareness!
+                        if ret == QtWidgets.QMessageBox.No:
+                            return
+                    else:
+                        gidinput.setText(gameid)
             else:
                 # Initialize vars
                 lines = group.splitlines()
-                name = code = comment = ''
+                name = code = comment = author = ''
                 isenabled = False
 
                 # Parse the group and match each line with the code line regex
@@ -85,8 +103,14 @@ def ImportTXT(filename, codelist):
                     else:
                         if name:  # We already have a name set, so add this line to the comment
                             comment = '\n'.join([comment, line])
-                        else:  # The code doesn't have a name yet, so set it to this line
-                            name = line
+                        else:  # The code doesn't have a name yet, so set it to this line. Also check for the author name
+                            lspl = line.split(' [')
+                            if len(lspl) > 1:
+                                for char in lspl[1]:
+                                    if char == ']':
+                                        break
+                                    author += char
+                            name = lspl[0]
 
                 # Failsafe if the code has no name
                 if not name:
@@ -113,6 +137,9 @@ def ImportTXT(filename, codelist):
                 if code:
                     newitem.setText(1, code[1:].upper())  # Force uppercase, because lowercase sucks.
                     newitem.setText(2, comment[1:])  # Btw, the first character is a newline, so i'm removing it.
+                    newitem.setText(4, author)
+                    if 'Unknown Code' in newitem.text(0):
+                        globalstuff.mainWindow.CodeLookup(newitem, codelist, gameid)
                 else:
                     newitem.setAsCategory(True)
                     parent = newitem
@@ -134,7 +161,12 @@ def ImportINI(filename, codelist):
     # Set the gameID
     gameid = os.path.splitext(os.path.basename(filename))[0]  # Remove the file extension
     if 4 <= len(gameid) <= 6:
-        gidinput.setText(gameid)
+        if not gidinput.text() == 'UNKW00' and gidinput.text() != gameid:
+            ret = GameIDMismatch()  # Raise awareness!
+            if ret == QtWidgets.QMessageBox.No:
+                return
+        else:
+            gidinput.setText(gameid)
 
     # Open the file
     with open(filename) as f:
@@ -180,6 +212,8 @@ def ImportINI(filename, codelist):
                         break
                     charcount += 1
 
+                author = line[charcount+2:-1]  # Author is rest of the line excluding the last character
+
                 # if the resulting name is empty, apply the following failsafe
                 if charcount == 1:
                     line += 'Unknown Code '
@@ -187,9 +221,11 @@ def ImportINI(filename, codelist):
                     while codelist.findItems(line + str(unkcount), Qt.MatchExactly):
                         unkcount += 1
                     line += str(unkcount)
+                    charcount = len(line)
 
                 # Create the widget
                 newitem = ModdedTreeWidgetItem(line[1:charcount], False, True)
+                newitem.setText(4, author)
                 entrylist.append(newitem)
             elif line.startswith('*'):  # It's a comment line
                 if len(line) > 1:
@@ -205,7 +241,10 @@ def ImportINI(filename, codelist):
             item.setText(2, item.text(2)[1:])
 
         # Finally, add all the newly created widgets to the codelist. Insert obligatory "Fuck Dolphin" here.
-        codelist.addTopLevelItems(entrylist)
+        for item in entrylist:
+            if 'Unknown Code' in item.text(0):
+                globalstuff.mainWindow.CodeLookup(item, codelist, gameid)
+            codelist.addTopLevelItem(item)
 
 
 def ImportGCT(filename, codelist):
@@ -277,7 +316,12 @@ def ParseExtendedGCT(f, codelist):
 
     # Verify the gameid's validity
     if 4 <= len(gameid) <= 6:
-        gidinput.setText(gameid)
+        if not gidinput.text() == 'UNKW00' and gidinput.text() != gameid:
+            ret = GameIDMismatch()  # Raise awareness!
+            if ret == QtWidgets.QMessageBox.No:
+                return
+        else:
+            gidinput.setText(gameid)
 
     # Read the amount of codes
     f.seek(backupoffset)  # Go back
@@ -318,6 +362,16 @@ def ParseExtendedGCT(f, codelist):
                 break
             codename += char.decode('utf-8')
 
+        # Find the author inside the name
+        lspl = codename.split(' [')
+        author = ''
+        if len(lspl) > 1:
+            for char in lspl[1]:
+                if char == ']':
+                    break
+                author += char
+        codename = lspl[0]
+
         # Go the comment and read it
         comment = ''
         if commentoffs:
@@ -332,6 +386,7 @@ def ParseExtendedGCT(f, codelist):
         newitem = ModdedTreeWidgetItem(codename, False, True)
         newitem.setText(1, assembledcode)
         newitem.setText(2, comment)
+        newitem.setText(4, author)
         listwidget.addTopLevelItem(newitem)
 
         # Go back to the offset we backed up earlier
@@ -359,7 +414,12 @@ def ParseGCT(filename, f, codelist):
 
     # Verify the gameid's validity
     if 4 <= len(filename) <= 6:
-        gidinput.setText(filename)
+        if not gidinput.text() == 'UNKW00' and gidinput.text() == filename:
+            ret = GameIDMismatch()
+            if ret == QtWidgets.QMessageBox.No:
+                return
+        else:
+            gidinput.setText(filename)
 
     # Begin reading the GCT!
     while f.tell() < filelen:
@@ -372,12 +432,12 @@ def ParseGCT(filename, f, codelist):
             # If we have exhausted the amount of lines specified or we meet an "E0" line, don't add anymore lines
             if amount == 0 or (amount == -1 and c == 224):
                 currentcode = False
+            else:
+                amount -= 1
 
             # Add the line. Yes PyCharm, i know newitem could be referenced before assignment, but currentcode is never
             # true when the loop begins, so shut the fuck up.
             newitem.setText(1, newitem.text(1) + line.hex().upper())
-            if amount > 0:
-                amount -= 1
 
         # It's a new code!
         else:
@@ -427,7 +487,9 @@ def ParseGCT(filename, f, codelist):
         item.setText(1, assembledcode)
 
     # Add the codes to the widget
-    listwidget.addTopLevelItems(finalist)
+    for item in finalist:
+        globalstuff.mainWindow.CodeLookup(item, listwidget, filename)
+        listwidget.addTopLevelItem(item)
 
     # TODO: LOOK UP DATABASES AND APPLY NAMES, CODES WITH THE SAME NAME ARE TO BE MERGED
 
@@ -489,6 +551,10 @@ def ImportDOL(filename, codelist):
                 elif shouldadd and f.read(8) == b'\xf0' + b'\0' * 7:
                     buffer += b'\xf0' + b'\0' * 7
                     break
+
+            # Skip the parsing if we didn't find anything
+            if len(buffer) == 8:
+                continue
 
             # Write the buffer to a temporary file, then feed it to the GCT parser
             with open('tmp.gct', 'wb+') as g:

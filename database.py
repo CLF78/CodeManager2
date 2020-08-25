@@ -20,6 +20,7 @@ class Database(QtWidgets.QWidget):
         self.DBrowser = QtWidgets.QTreeWidget()
         self.DBrowser.itemSelectionChanged.connect(self.HandleSelection)
         self.DBrowser.itemDoubleClicked.connect(HandleCodeOpen)
+        self.DBrowser.itemClicked.connect(self.EnableButtons)
 
         # Set the proper flags
         self.DBrowser.setHeaderHidden(True)
@@ -91,11 +92,14 @@ class Database(QtWidgets.QWidget):
                                          int(pl.attrib['type']),
                                          pl.attrib['comment'],
                                          pl.attrib['args'].split(',')) for pl in entry.xpath('placeholder')]))
+                newitem.setText(4, entry.attrib['author'])
 
     def HandleSelection(self):
         # Do the selection
         SelectItems(self.DBrowser)
+        self.EnableButtons()
 
+    def EnableButtons(self):
         # Update the Add button
         if CountCheckedCodes(self.DBrowser, True):
             self.AddButton.setEnabled(True)
