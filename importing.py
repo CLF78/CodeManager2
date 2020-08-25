@@ -29,7 +29,7 @@ def DoPreliminaryOperations(filename, codelist):
         win.setAttribute(Qt.WA_DeleteOnClose)
         globalstuff.mainWindow.mdi.addSubWindow(win)
         win.show()
-        return win
+        return win.widget()
     return codelist
 
 
@@ -41,7 +41,7 @@ def ImportTXT(filename, codelist):
     gidrule = re.compile('^[\w]{4,6}$')
     linerule = re.compile('^(\* )?[\w]{8} [\w]{8}', re.IGNORECASE)
     parent = None
-    unkcount = 1  # Used for codes without names
+    unkcount = 0  # Used for codes without names
 
     # Perform the initial operations. If they fail, abort everything.
     codelist = DoPreliminaryOperations(filename, codelist)
@@ -49,8 +49,8 @@ def ImportTXT(filename, codelist):
         return
 
     # Set the tree and lineedit widgets
-    gidinput = codelist.widget().gidInput
-    codelist = codelist.widget().Codelist
+    gidinput = codelist.gidInput
+    codelist = codelist.Codelist
 
     # Open the file
     with open(filename, 'rb') as f:
@@ -90,10 +90,11 @@ def ImportTXT(filename, codelist):
 
                 # Failsafe if the code has no name
                 if not name:
-                    name = 'Unknown Code'
-                    if unkcount > 1:
-                        name += str(unkcount)
+                    name = 'Unknown Code '
                     unkcount += 1
+                    while codelist.findItems(name + str(unkcount), Qt.MatchExactly):
+                        unkcount += 1
+                    name += str(unkcount)
 
                 # Create the tree entry
                 newitem = ModdedTreeWidgetItem(name, False, True)
@@ -127,8 +128,8 @@ def ImportINI(filename, codelist):
         return
 
     # Set the tree and lineedit widgets
-    gidinput = codelist.widget().gidInput
-    codelist = codelist.widget().Codelist
+    gidinput = codelist.gidInput
+    codelist = codelist.Codelist
 
     # Set the gameID
     gameid = os.path.splitext(os.path.basename(filename))[0]  # Remove the file extension
@@ -166,7 +167,7 @@ def ImportINI(filename, codelist):
 
         # Initialize vars
         entrylist = []
-        unkcount = 1
+        unkcount = 0
 
         # Parse the gecko section
         for line in gecko:
@@ -181,9 +182,11 @@ def ImportINI(filename, codelist):
 
                 # if the resulting name is empty, apply the following failsafe
                 if charcount == 1:
-                    line += 'Unknown Code'
-                    if unkcount > 1:
-                        line += str(unkcount)
+                    line += 'Unknown Code '
+                    unkcount += 1
+                    while codelist.findItems(line + str(unkcount), Qt.MatchExactly):
+                        unkcount += 1
+                    line += str(unkcount)
 
                 # Create the widget
                 newitem = ModdedTreeWidgetItem(line[1:charcount], False, True)
@@ -221,12 +224,10 @@ def ImportGCT(filename, codelist):
 
             # If the "Codelist End" is at the end of the file, we have a regular GCT
             if f.read() == b'\xf0' + b'\0' * 7:
-                f.seek(0)  # Go back to the beginning
                 ParseGCT(os.path.splitext(os.path.basename(filename))[0], f, codelist)
 
             # Otherwise we have an extended GCT
             else:
-                f.seek(0)  # Go back to the beginning
                 ParseExtendedGCT(f, codelist)
         else:
             # This ain't it, chief
@@ -242,11 +243,10 @@ def ParseExtendedGCT(f, codelist):
     backupoffset = 0
 
     # Set the lineedit widget
-    gidinput = codelist.widget().gidInput
-    listwidget = codelist.widget().Codelist
+    gidinput = codelist.gidInput
+    listwidget = codelist.Codelist
 
     # First, let's get the file's length
-    f.seek(0, 2)
     filelen = f.tell()
     f.seek(0)
 
@@ -350,11 +350,10 @@ def ParseGCT(filename, f, codelist):
     finalist = []
 
     # Set the lineedit widget
-    gidinput = codelist.widget().gidInput
-    listwidget = codelist.widget().Codelist
+    gidinput = codelist.gidInput
+    listwidget = codelist.Codelist
 
     # First, let's get the file's length
-    f.seek(0, 2)
     filelen = f.tell() - 8  # Ignore the F0 line
     f.seek(8)  # Go back to the beginning and skip the GCT magic
 
@@ -383,11 +382,12 @@ def ParseGCT(filename, f, codelist):
         # It's a new code!
         else:
             # Create the tree widget item
+            name = 'Unknown Code '
             unkcount += 1
-            if unkcount == 1:
-                newitem = ModdedTreeWidgetItem('Unknown Code', False, True)
-            else:
-                newitem = ModdedTreeWidgetItem('Unknown Code ' + str(unkcount), False, True)
+            while listwidget.findItems(name + str(unkcount), Qt.MatchExactly):
+                unkcount += 1
+            name += str(unkcount)
+            newitem = ModdedTreeWidgetItem(name, False, True)
             newitem.setText(1, line.hex().upper())
             finalist.append(newitem)
 
@@ -430,3 +430,71 @@ def ParseGCT(filename, f, codelist):
     listwidget.addTopLevelItems(finalist)
 
     # TODO: LOOK UP DATABASES AND APPLY NAMES, CODES WITH THE SAME NAME ARE TO BE MERGED
+
+
+def ImportDOL(filename, codelist):
+    """
+    The ImportGCT twins' older sister.
+    """
+    # Initialize vars
+    sections = []
+
+    # Perform the initial operations. If they fail, abort everything.
+    codelist = DoPreliminaryOperations(filename, codelist)
+    if not codelist:
+        return
+
+    # Do the parsing
+    with open(filename, 'rb') as f:
+        # Get the entrypoint
+        f.seek(224)
+        entrypoint = int(f.read(4).hex(), 16)
+
+        # Go to the text sections' loading address. The one with the same address as the entrypoint usually contains the
+        # codehandler+gct. But other custom code might override this, so as an additional check for 0x80001800 is made
+        f.seek(72)
+        for i in range(7):
+            secmem = int(f.read(4).hex(), 16)
+            if secmem == entrypoint or secmem == 0x80001800:
+                sections.append(i)
+
+        # If there are no matches, it means there's no codehandler here
+        if not sections:
+            QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, 'Empty DOL', "No GCTs were found in this file", QtWidgets.QMessageBox.Ok).exec_()
+            return
+
+        for section in sections:
+            # Get the section offset and length
+            f.seek(4 * section)
+            sectionoffset = int(f.read(4).hex(), 16)
+            f.seek(144 + section * 4)
+            sectionend = sectionoffset + int(f.read(4).hex(), 16)
+
+            # Initialize vars
+            shouldadd = False
+            buffer = b'\0\xd0\xc0\xde' * 2
+
+            # Read the section
+            f.seek(sectionoffset)
+            while f.tell() < sectionend:
+                # We found the gct magic, so add this to the buffer
+                if shouldadd:
+                    buffer += f.read(8)
+
+                # Found the GCT magic, start reading from here
+                elif f.read(8) == b'\0\xd0\xc0\xde' * 2:
+                    shouldadd = True
+
+                # Found the end of codelist marker, stop reading
+                elif shouldadd and f.read(8) == b'\xf0' + b'\0' * 7:
+                    buffer += b'\xf0' + b'\0' * 7
+                    break
+
+            # Write the buffer to a temporary file, then feed it to the GCT parser
+            with open('tmp.gct', 'wb+') as g:
+                g.write(buffer)
+                g.seek(0, 2)
+                ParseGCT('tmp.gct', g, codelist)
+
+            # Remove the file
+            os.remove('tmp.gct')

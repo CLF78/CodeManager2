@@ -6,7 +6,7 @@ from PyQt5.Qt import Qt
 import globalstuff
 from codelist import CodeList
 from database import Database
-from importing import ImportTXT, ImportINI, ImportGCT
+from importing import ImportTXT, ImportINI, ImportGCT, ImportDOL
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -70,9 +70,7 @@ class MainWindow(QtWidgets.QMainWindow):
             elif '.gct' in file:
                 ImportGCT(file, source)
             elif '.dol' in file:
-                print('opendol')
-            else:
-                print('cannotopenfile')
+                ImportDOL(file, source)
 
     def updateboxes(self):
         """

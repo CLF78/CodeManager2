@@ -20,7 +20,7 @@ class CodeList(QtWidgets.QWidget):
         self.Codelist.itemSelectionChanged.connect(self.HandleSelection)
         self.Codelist.itemDoubleClicked.connect(HandleCodeOpen)
         self.Codelist.itemChanged.connect(self.RenameWindows)
-        self.Codelist.itemClicked.connect(lambda x: x.setStatusTip(0, x.text(0)))  # Using the status tip as a backup option
+        self.Codelist.itemClicked.connect(self.HandleClicking)  # Using the status tip as a backup option
 
         # Merge button, up here for widget height purposes
         self.mergeButton = QtWidgets.QPushButton('Merge Selected')
@@ -127,6 +127,13 @@ class CodeList(QtWidgets.QWidget):
         SelectItems(self.Codelist)
         self.EnableButtons()
 
+    def HandleClicking(self, item):
+        """
+        Backups up the codename and checks the buttons
+        """
+        item.setStatusTip(0, item.text(0))
+        self.EnableButtons()
+
     def EnableButtons(self, canexport=False, canremove=False, canmerge=False):
         """
         Enables the Remove, Export and Merge button if the respective conditions are met
@@ -195,3 +202,8 @@ class CodeList(QtWidgets.QWidget):
                     item.parent().takeChild(item.parent().indexOfChild(item))  # It's a child, tell the parent to kill him
                 else:
                     self.Codelist.takeTopLevelItem(self.Codelist.indexOfTopLevelItem(item))  # It's a parent, tell the codelist to kill him
+
+        # Now find all instances of CodeEditor that have the destination code open, and update their code widget
+        winlist = [window.widget().CodeContent for window in globalstuff.mainWindow.mdi.subWindowList() if isinstance(window.widget(), CodeEditor) and window.widget().parentz == destination]
+        for window in winlist:
+            window.setPlainText(destination.text(1))
