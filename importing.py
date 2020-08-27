@@ -9,8 +9,19 @@ from PyQt5 import QtWidgets
 from PyQt5.Qt import Qt
 
 import globalstuff
+from common import GameIDMismatch
 from codelist import CodeList
 from widgets import ModdedSubWindow, ModdedTreeWidgetItem
+
+
+def GameIDCheck(gameid, codelist):
+    if codelist.gameID != gameid:
+        if codelist.gameID != 'UNKW00':
+            ret = GameIDMismatch()  # Raise awareness!
+            if ret == QtWidgets.QMessageBox.No:
+                return False
+        codelist.SetGameID(gameid)
+    return True
 
 
 def DoPreliminaryOperations(filename, codelist):
@@ -25,23 +36,12 @@ def DoPreliminaryOperations(filename, codelist):
     # If the codelist param is not set, we want to create a new window, so do that
     if not codelist:
         win = ModdedSubWindow()
-        win.setWidget(CodeList(filename))
+        win.setWidget(CodeList(''))
         win.setAttribute(Qt.WA_DeleteOnClose)
         globalstuff.mainWindow.mdi.addSubWindow(win)
         win.show()
         return win.widget()
     return codelist
-
-
-def GameIDMismatch():
-    msgbox = QtWidgets.QMessageBox()
-    msgbox.setIcon(QtWidgets.QMessageBox.Question)
-    msgbox.setWindowTitle('Game ID Mismatch')
-    msgbox.setText("The Game ID in this codelist doesn't match this file's. Do you want to continue?")
-    msgbox.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
-    msgbox.setDefaultButton(QtWidgets.QMessageBox.Yes)
-    ret = msgbox.exec_()
-    return ret
 
 
 def ImportTXT(filename, codelist):
@@ -59,9 +59,8 @@ def ImportTXT(filename, codelist):
     if not codelist:
         return
 
-    # Set the tree and lineedit widgets
-    gidinput = codelist.gidInput
-    codelist = codelist.Codelist
+    # Set the tree widget
+    listwidget = codelist.Codelist
 
     # Open the file
     with open(filename, 'rb') as f:
@@ -76,13 +75,8 @@ def ImportTXT(filename, codelist):
         for i, group in enumerate(rawdata):
             if not i:  # The first group contains the gameid, so check it with regex and set it if it's valid
                 gameid = group.splitlines()[0]
-                if re.match(gidrule, gameid):
-                    if not gidinput.text() == 'UNKW00' and gidinput.text() != gameid:
-                        ret = GameIDMismatch()  # Raise awareness!
-                        if ret == QtWidgets.QMessageBox.No:
-                            return
-                    else:
-                        gidinput.setText(gameid)
+                if re.match(gidrule, gameid) and not GameIDCheck(gameid, codelist):
+                    return
             else:
                 # Initialize vars
                 lines = group.splitlines()
@@ -116,7 +110,7 @@ def ImportTXT(filename, codelist):
                 if not name:
                     name = 'Unknown Code '
                     unkcount += 1
-                    while codelist.findItems(name + str(unkcount), Qt.MatchExactly):
+                    while listwidget.findItems(name + str(unkcount), Qt.MatchExactly):
                         unkcount += 1
                     name += str(unkcount)
 
@@ -131,7 +125,7 @@ def ImportTXT(filename, codelist):
                 if parent and code:
                     parent.addChild(newitem)  # Only nest codes, not categories, TXTs don't let you do this.
                 else:
-                    codelist.addTopLevelItem(newitem)
+                    listwidget.addTopLevelItem(newitem)
 
                 # Finally, insert the data. What a wild ride.
                 if code:
@@ -155,18 +149,12 @@ def ImportINI(filename, codelist):
         return
 
     # Set the tree and lineedit widgets
-    gidinput = codelist.gidInput
-    codelist = codelist.Codelist
+    listwidget = codelist.Codelist
 
     # Set the gameID
     gameid = os.path.splitext(os.path.basename(filename))[0]  # Remove the file extension
-    if 4 <= len(gameid) <= 6:
-        if not gidinput.text() == 'UNKW00' and gidinput.text() != gameid:
-            ret = GameIDMismatch()  # Raise awareness!
-            if ret == QtWidgets.QMessageBox.No:
-                return
-        else:
-            gidinput.setText(gameid)
+    if 4 <= len(gameid) <= 6 and not GameIDCheck(gameid, codelist):
+        return
 
     # Open the file
     with open(filename) as f:
@@ -218,7 +206,7 @@ def ImportINI(filename, codelist):
                 if charcount == 1:
                     line += 'Unknown Code '
                     unkcount += 1
-                    while codelist.findItems(line + str(unkcount), Qt.MatchExactly):
+                    while listwidget.findItems(line + str(unkcount), Qt.MatchExactly):
                         unkcount += 1
                     line += str(unkcount)
                     charcount = len(line)
@@ -244,7 +232,7 @@ def ImportINI(filename, codelist):
         for item in entrylist:
             if 'Unknown Code' in item.text(0):
                 globalstuff.mainWindow.CodeLookup(item, codelist, gameid)
-            codelist.addTopLevelItem(item)
+            listwidget.addTopLevelItem(item)
 
 
 def ImportGCT(filename, codelist):
@@ -270,7 +258,6 @@ def ImportGCT(filename, codelist):
                 ParseExtendedGCT(f, codelist)
         else:
             # This ain't it, chief
-            codelist.close()
             QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, 'Invalid File', 'This file is not a GCT', QtWidgets.QMessageBox.Ok).exec_()
 
 
@@ -281,8 +268,7 @@ def ParseExtendedGCT(f, codelist):
     # Initialize vars
     backupoffset = 0
 
-    # Set the lineedit widget
-    gidinput = codelist.gidInput
+    # Set the tree widget
     listwidget = codelist.Codelist
 
     # First, let's get the file's length
@@ -298,7 +284,6 @@ def ParseExtendedGCT(f, codelist):
 
     # Failsafe time
     if f.tell() == filelen:
-        codelist.close()
         QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, 'Invalid File', 'This file is not a GCT', QtWidgets.QMessageBox.Ok).exec_()
         return
 
@@ -315,13 +300,8 @@ def ParseExtendedGCT(f, codelist):
         gameid += char.decode('utf-8')
 
     # Verify the gameid's validity
-    if 4 <= len(gameid) <= 6:
-        if not gidinput.text() == 'UNKW00' and gidinput.text() != gameid:
-            ret = GameIDMismatch()  # Raise awareness!
-            if ret == QtWidgets.QMessageBox.No:
-                return
-        else:
-            gidinput.setText(gameid)
+    if 4 <= len(gameid) <= 6 and not GameIDCheck(gameid, codelist):
+        return
 
     # Read the amount of codes
     f.seek(backupoffset)  # Go back
@@ -404,8 +384,7 @@ def ParseGCT(filename, f, codelist):
     unkcount = 0
     finalist = []
 
-    # Set the lineedit widget
-    gidinput = codelist.gidInput
+    # Set the tree widget
     listwidget = codelist.Codelist
 
     # First, let's get the file's length
@@ -413,13 +392,9 @@ def ParseGCT(filename, f, codelist):
     f.seek(8)  # Go back to the beginning and skip the GCT magic
 
     # Verify the gameid's validity
-    if 4 <= len(filename) <= 6:
-        if not gidinput.text() == 'UNKW00' and gidinput.text() == filename:
-            ret = GameIDMismatch()
-            if ret == QtWidgets.QMessageBox.No:
-                return
-        else:
-            gidinput.setText(filename)
+    filename = os.path.splitext(os.path.basename(filename))[0]
+    if 4 <= len(filename) <= 6 and not GameIDCheck(filename, codelist):
+        return
 
     # Begin reading the GCT!
     while f.tell() < filelen:
@@ -491,8 +466,6 @@ def ParseGCT(filename, f, codelist):
         globalstuff.mainWindow.CodeLookup(item, listwidget, filename)
         listwidget.addTopLevelItem(item)
 
-    # TODO: LOOK UP DATABASES AND APPLY NAMES, CODES WITH THE SAME NAME ARE TO BE MERGED
-
 
 def ImportDOL(filename, codelist):
     """
@@ -522,7 +495,7 @@ def ImportDOL(filename, codelist):
 
         # If there are no matches, it means there's no codehandler here
         if not sections:
-            QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, 'Empty DOL', "No GCTs were found in this file", QtWidgets.QMessageBox.Ok).exec_()
+            QtWidgets.QMessageBox(QtWidgets.QMessageBox.Critical, 'Empty DOL', "No GCTs were found in this file.", QtWidgets.QMessageBox.Ok).exec_()
             return
 
         for section in sections:

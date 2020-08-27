@@ -1,3 +1,4 @@
+import os
 import re
 import sys
 
@@ -5,6 +6,7 @@ from PyQt5 import QtWidgets
 from PyQt5.Qt import Qt
 
 import globalstuff
+from titles import DownloadError
 from codelist import CodeList
 from database import Database
 from importing import ImportTXT, ImportINI, ImportGCT, ImportDOL
@@ -24,6 +26,10 @@ class MainWindow(QtWidgets.QMainWindow):
         # Set window title and show the window maximized
         self.setWindowTitle('Code Manager 2')
         self.showMaximized()
+
+        # Check for the wiitdb.txt file
+        if not os.path.isfile(globalstuff.wiitdb):
+            DownloadError()
 
     def createMenubar(self):
         """
@@ -73,18 +79,20 @@ class MainWindow(QtWidgets.QMainWindow):
             elif '.dol' in file:
                 ImportDOL(file, source)
 
-    def updateboxes(self):
+    @staticmethod
+    def updateboxes():
         """
         Looks for opened codelist sub-windows and adds them to each database' combo box. Yes PyCharm, i know it is a
         static method but no, i'm not gonna move it out of this class, so deal with it.
         """
         dblist = [window.widget() for window in globalstuff.mainWindow.mdi.subWindowList() if isinstance(window.widget(), Database)]
-        entries = [window.windowTitle() for window in globalstuff.mainWindow.mdi.subWindowList() if isinstance(window.widget(), CodeList)]
+        entries = [window.widget() for window in globalstuff.mainWindow.mdi.subWindowList() if isinstance(window.widget(), CodeList)]
         for database in dblist:
             if database.Combox.count() - 1 != len(entries):
                 database.Combox.clear()
                 database.Combox.addItem('Create New Codelist')
-                database.Combox.addItems(entries)
+                for entry in entries:
+                    database.Combox.addItem(entry.windowTitle()[11:], entry)
 
     def CodeLookup(self, item, codelist, gid):
         """
@@ -95,7 +103,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 [window.widget().Codelist for window in self.mdi.subWindowList() if isinstance(window.widget(), CodeList) and window.widget().Codelist is not codelist and window.widget().gidInput.text() == gid]
 
         # Initialize vars
-        lsplt = re.split(' |\n', item.text(1))
+        lsplt = re.split('[ \n]', item.text(1))
         totalen = len(lsplt)
 
         # Begin search! If a code matches by more than 66%, it will be counted as a full match.

@@ -9,6 +9,7 @@ import globalstuff
 from codelist import CodeList
 from codeeditor import HandleCodeOpen
 from common import CountCheckedCodes, SelectItems
+from titles import TitleLookup
 from widgets import ModdedTreeWidgetItem, ModdedSubWindow
 
 
@@ -55,11 +56,10 @@ class Database(QtWidgets.QWidget):
         # Open the database
         tree = etree.parse(name).getroot()
 
-        # Parse game id and name, then apply them to the window title
-        # TODO: READ GAME ID FROM A TITLE DATABASE AND GET CORRESPONDING NAME
+        # Parse game id, lookup the corresponding name, then apply them to the window title
         try:
             self.gameID = tree.xpath('gameid')[0].text
-            self.gameName = tree.xpath('gamename')[0].text
+            self.gameName = TitleLookup(self.gameID)
         except:
             self.gameID = 'UNKW00'  # Failsafe
             self.gameName = 'Unknown Game'
@@ -101,7 +101,7 @@ class Database(QtWidgets.QWidget):
 
     def EnableButtons(self):
         # Update the Add button
-        if CountCheckedCodes(self.DBrowser, True):
+        if CountCheckedCodes(self.DBrowser, False):
             self.AddButton.setEnabled(True)
         else:
             self.AddButton.setEnabled(False)
@@ -128,17 +128,13 @@ class Database(QtWidgets.QWidget):
         """
         Transfers the selected codes to the chosen codelist
         """
-        enabledlist = CountCheckedCodes(self.DBrowser, True)
+        enabledlist = CountCheckedCodes(self.DBrowser, False)
         if self.Combox.currentIndex() > 0:
-            for window in globalstuff.mainWindow.mdi.subWindowList():
-                if isinstance(window.widget(), CodeList) and window.windowTitle() == self.Combox.currentText():
-                    window.widget().AddFromDatabase(enabledlist)
-                    return
+            self.Combox.currentData().AddFromDatabase(enabledlist, self.gameID)
         else:
             win = ModdedSubWindow()
-            win.setWidget(CodeList('New Code List'))
-            win.widget().AddFromDatabase(enabledlist)
-            win.widget().gidInput.setText(self.gameID)
+            win.setWidget(CodeList(''))
+            win.widget().AddFromDatabase(enabledlist, self.gameID)
             win.setAttribute(Qt.WA_DeleteOnClose)
             globalstuff.mainWindow.mdi.addSubWindow(win)
             globalstuff.mainWindow.updateboxes()

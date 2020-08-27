@@ -132,3 +132,4 @@ dmypy.json
 # My stuff
 old/
 .idea/
+wiitdb.txt

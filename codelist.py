@@ -7,7 +7,8 @@ from PyQt5.Qt import Qt
 
 import globalstuff
 from codeeditor import CodeEditor, HandleCodeOpen, HandleAddCode
-from common import CountCheckedCodes, SelectItems
+from common import CountCheckedCodes, SelectItems, GameIDMismatch
+from titles import TitleLookup
 from widgets import ModdedTreeWidget, ModdedTreeWidgetItem
 
 
@@ -24,7 +25,7 @@ class CodeList(QtWidgets.QWidget):
 
         # Merge button, up here for widget height purposes
         self.mergeButton = QtWidgets.QPushButton('Merge Selected')
-        self.mergeButton.clicked.connect(lambda: self.HandleMerge(CountCheckedCodes(self.Codelist, False)))
+        self.mergeButton.clicked.connect(lambda: self.HandleMerge(CountCheckedCodes(self.Codelist, True)))
 
         # Add button+menu
         addMenu = QtWidgets.QMenu()
@@ -63,10 +64,12 @@ class CodeList(QtWidgets.QWidget):
         self.EnableButtons()
 
         # Game ID field
+        self.gameID = 'UNKW00'
+        self.gameName = 'Unknown Game'
         self.gidInput = QtWidgets.QLineEdit()
         self.gidInput.setPlaceholderText('Insert GameID here...')
-        self.gidInput.setText('UNKW00')
         self.gidInput.setMaxLength(6)
+        self.gidInput.setText(self.gameID)
 
         # Line counter
         self.lineLabel = QtWidgets.QLabel('Lines: 2')
@@ -86,29 +89,28 @@ class CodeList(QtWidgets.QWidget):
         self.setLayout(lyt)
 
         # Set the window title accordingly
-        self.HandleWinTitle(wintitle)
+        self.SetGameID(wintitle)
 
-    def HandleWinTitle(self, oldtitle: str, i: int = 0):
-        """
-        Checks that there isn't a window with the same title. If not, it appends an ever-increasing number to it.
-        """
-        winlist = [window.windowTitle() for window in globalstuff.mainWindow.mdi.subWindowList() if isinstance(window.widget(), CodeList)]
-        while True:
-            i += 1
-            newtitle = ' '.join([oldtitle, str(i)])
-            if newtitle not in winlist:
-                break
-        self.setWindowTitle(newtitle)
-
-    def AddFromDatabase(self, enabledlist: list):
+    def AddFromDatabase(self, enabledlist: list, gameid: str):
         """
         Takes a list of the enabled items and clones it in the codelist.
         """
+        # Check for game id mismatch and update if necessary
+        if gameid != self.gameID:
+            if self.gameID != 'UNKW00':
+                ret = GameIDMismatch()
+                if ret == QtWidgets.QMessageBox.No:
+                    return
+            self.SetGameID(gameid)
+
+        # Add the codes
         for item in enabledlist:
             clone = item.clone()
             clone.setFlags(clone.flags() | Qt.ItemIsEditable)  # Gotta enable renaming, hehe.
             self.Codelist.addTopLevelItem(clone)
             self.CleanChildren(clone)
+
+        # Update the selection
         self.HandleSelection()
 
     def CleanChildren(self, item):
@@ -138,7 +140,7 @@ class CodeList(QtWidgets.QWidget):
         """
         Enables the Remove, Export and Merge button if the respective conditions are met
         """
-        for item in CountCheckedCodes(self.Codelist, False):
+        for item in CountCheckedCodes(self.Codelist, True):
             if item.text(1):
                 if canexport:
                     canmerge = True
@@ -150,7 +152,8 @@ class CodeList(QtWidgets.QWidget):
         self.exportButton.setEnabled(canexport)
         self.mergeButton.setEnabled(canmerge)
 
-    def RenameWindows(self, item):
+    @staticmethod
+    def RenameWindows(item):
         """
         When you rename a code, the program will look for code editors that originated from that code and update their
         window title accordingly
@@ -187,7 +190,7 @@ class CodeList(QtWidgets.QWidget):
                 backuplist.append(self.Codelist.takeTopLevelItem(self.Codelist.indexOfTopLevelItem(item)))
         self.Codelist.sortItems(0, Qt.AscendingOrder)  # Sort the categories alphabetically
         backuplist.sort(key=lambda x: len(x.text(1)), reverse=True)  # Sort the backup list by code size (bigger codes first)
-        self.Codelist.insertTopLevelItems(len(self.Codelist.findItems('', Qt.MatchContains)), backuplist)  # Reinsert the items
+        self.Codelist.insertTopLevelItems(self.Codelist.topLevelItemCount(), backuplist)  # Reinsert the items
 
     def HandleMerge(self, mergedlist):
         """
@@ -210,3 +213,10 @@ class CodeList(QtWidgets.QWidget):
         winlist = [window.widget().CodeContent for window in globalstuff.mainWindow.mdi.subWindowList() if isinstance(window.widget(), CodeEditor) and window.widget().parentz == destination]
         for window in winlist:
             window.setPlainText(destination.text(1))
+
+    def SetGameID(self, gameid):
+        if 4 <= len(gameid) <= 6:
+            self.gameID = gameid
+            self.gameName = TitleLookup(gameid)
+            self.gidInput.setText(gameid)
+        self.setWindowTitle('Codelist - {} [{}]'.format(self.gameName, self.gameID))

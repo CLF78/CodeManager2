@@ -2,6 +2,17 @@
 This file contains functions that are used by multiple windows to prevent duplication.
 """
 from PyQt5.Qt import Qt
+from PyQt5 import QtWidgets
+
+
+def GameIDMismatch():
+    msgbox = QtWidgets.QMessageBox()
+    msgbox.setWindowTitle('Game ID Mismatch')
+    msgbox.setText("The Game ID in this codelist doesn't match this file's. Do you want to continue?")
+    msgbox.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
+    msgbox.setDefaultButton(QtWidgets.QMessageBox.Yes)
+    ret = msgbox.exec_()
+    return ret
 
 
 def CheckChildren(item):
@@ -16,12 +27,13 @@ def CheckChildren(item):
             child.setCheckState(0, Qt.Checked)
 
 
-def CountCheckedCodes(source, dontuserecursive: bool):
+def CountCheckedCodes(source, userecursive: bool):
     """
     Returns a list of the codes currently enabled, based on certain criteria.
     """
+    userecursive = not userecursive
     enabledlist = []
-    for item in source.findItems('', Qt.MatchContains | Qt.MatchFlag(64 >> 6 * dontuserecursive)):  # This returns 64 if False, 1 if True
+    for item in source.findItems('', Qt.MatchContains | Qt.MatchFlag(64 >> 6 * userecursive)):  # This returns 64 if False, 1 if True
         if item.checkState(0) > 0:  # We're looking for both partially checked and checked items
             enabledlist.append(item)
     return enabledlist
