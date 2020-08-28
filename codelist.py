@@ -1,5 +1,5 @@
 """
-Codelists are different from databases, as they accept adding/removing, importing/exporting, reordering, dragging
+Codelists are different from databases, as they accept adding/removing, importing/exporting, reordering, dropping
 and more.
 """
 from PyQt5 import QtWidgets
@@ -63,13 +63,25 @@ class CodeList(QtWidgets.QWidget):
         # Configure the buttons
         self.EnableButtons()
 
-        # Game ID field
+        # Set game id, game name and update the window title accordingly
         self.gameID = 'UNKW00'
         self.gameName = 'Unknown Game'
+        self.SetGameID(wintitle)
+
+        # Game ID text field + save button
         self.gidInput = QtWidgets.QLineEdit()
         self.gidInput.setPlaceholderText('Insert GameID here...')
         self.gidInput.setMaxLength(6)
         self.gidInput.setText(self.gameID)
+        self.gidInput.textEdited.connect(self.UpdateButton)
+        self.savegid = QtWidgets.QPushButton('Save')
+        self.savegid.setEnabled(False)
+        self.savegid.clicked.connect(lambda: self.SetGameID(self.gidInput.text()))
+
+        # Make a horizontal layout for these two
+        formlyt = QtWidgets.QHBoxLayout()
+        formlyt.addWidget(self.gidInput)
+        formlyt.addWidget(self.savegid)
 
         # Line counter
         self.lineLabel = QtWidgets.QLabel('Lines: 2')
@@ -77,7 +89,7 @@ class CodeList(QtWidgets.QWidget):
 
         # Make a layout and set it
         lyt = QtWidgets.QGridLayout()
-        lyt.addWidget(self.gidInput, 0, 0, 1, 2)
+        lyt.addLayout(formlyt, 0, 0, 1, 2)
         lyt.addWidget(self.Codelist, 1, 0, 1, 2)
         lyt.addWidget(self.lineLabel, 2, 0, 1, 2)
         lyt.addWidget(self.addButton, 3, 0)
@@ -87,9 +99,6 @@ class CodeList(QtWidgets.QWidget):
         lyt.addWidget(self.importButton, 5, 0)
         lyt.addWidget(self.exportButton, 5, 1)
         self.setLayout(lyt)
-
-        # Set the window title accordingly
-        self.SetGameID(wintitle)
 
     def AddFromDatabase(self, enabledlist: list, gameid: str):
         """
@@ -112,6 +121,7 @@ class CodeList(QtWidgets.QWidget):
 
         # Update the selection
         self.HandleSelection()
+        self.UpdateLines()
 
     def CleanChildren(self, item):
         """
@@ -128,6 +138,7 @@ class CodeList(QtWidgets.QWidget):
     def HandleSelection(self):
         SelectItems(self.Codelist)
         self.EnableButtons()
+        self.UpdateLines()
 
     def HandleClicking(self, item):
         """
@@ -135,6 +146,7 @@ class CodeList(QtWidgets.QWidget):
         """
         item.setStatusTip(0, item.text(0))
         self.EnableButtons()
+        self.UpdateLines()
 
     def EnableButtons(self, canexport=False, canremove=False, canmerge=False):
         """
@@ -220,3 +232,16 @@ class CodeList(QtWidgets.QWidget):
             self.gameName = TitleLookup(gameid)
             self.gidInput.setText(gameid)
         self.setWindowTitle('Codelist - {} [{}]'.format(self.gameName, self.gameID))
+
+    def UpdateButton(self):
+        if len(self.gidInput.text()) > 3:
+            self.savegid.setEnabled(True)
+        else:
+            self.savegid.setEnabled(False)
+
+    def UpdateLines(self):
+        lines = 2
+        for item in CountCheckedCodes(self.Codelist, True):
+            if item.text(1):
+                lines += item.text(1).count('\n') + 1
+        self.lineLabel.setText('Lines: ' + str(lines))

@@ -39,6 +39,7 @@ class Database(QtWidgets.QWidget):
         # Add the opened codelist combo box
         self.Combox = QtWidgets.QComboBox()
         self.Combox.addItem('Create New Codelist')
+        globalstuff.mainWindow.updateboxes()
 
         # Finally, add the "Add" button
         self.AddButton = QtWidgets.QPushButton('Add to Codelist')
@@ -58,7 +59,7 @@ class Database(QtWidgets.QWidget):
 
         # Parse game id, lookup the corresponding name, then apply them to the window title
         try:
-            self.gameID = tree.xpath('gameid')[0].text
+            self.gameID = tree.xpath('id')[0].text
             self.gameName = TitleLookup(self.gameID)
         except:
             self.gameID = 'UNKW00'  # Failsafe

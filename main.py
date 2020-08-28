@@ -6,10 +6,10 @@ from PyQt5 import QtWidgets
 from PyQt5.Qt import Qt
 
 import globalstuff
-from titles import DownloadError
 from codelist import CodeList
 from database import Database
 from importing import ImportTXT, ImportINI, ImportGCT, ImportDOL
+from titles import DownloadError
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -24,7 +24,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.createMenubar()
 
         # Set window title and show the window maximized
-        self.setWindowTitle('Code Manager 2')
+        self.setWindowTitle('Code Manager Reborn')
         self.showMaximized()
 
         # Check for the wiitdb.txt file
@@ -92,7 +92,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 database.Combox.clear()
                 database.Combox.addItem('Create New Codelist')
                 for entry in entries:
-                    database.Combox.addItem(entry.windowTitle()[11:], entry)
+                    database.Combox.addItem(entry.windowTitle()[11:], entry)  # Only keep game name and id
 
     def CodeLookup(self, item, codelist, gid):
         """

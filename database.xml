@@ -1,6 +1,5 @@
 <codelist>
-	<gameid>RMCP01</gameid>
-	<gamename>Mario Kart Wii</gamename>
+	<id>RMCP01</id>
 	<!--<plugin>mkw.py</plugin>-->
 	<category name="Item Behaviour">
 		<code name="All Items Can Land" author="MrBean" comment="This code lets every item (with the exception of the Thundercloud) land on the floor when dropped, and they can be activated by driving over them.">

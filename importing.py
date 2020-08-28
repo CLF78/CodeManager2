@@ -51,8 +51,9 @@ def ImportTXT(filename, codelist):
     # Initialize vars
     gidrule = re.compile('^[\w]{4,6}$')
     linerule = re.compile('^(\* )?[\w]{8} [\w]{8}', re.IGNORECASE)
-    parent = None
-    unkcount = 0  # Used for codes without names
+    unkcount = 1  # Used for codes without names
+    currdepth = 0  # Current depth, used for sub-categories
+    parents = {'0': None}  # Parent 0 is the tree itself
 
     # Perform the initial operations. If they fail, abort everything.
     codelist = DoPreliminaryOperations(filename, codelist)
@@ -71,72 +72,93 @@ def ImportTXT(filename, codelist):
         rawdata = f.read()
         rawdata = rawdata.decode(encoding=detect(rawdata)['encoding'], errors='ignore').split('\r\n' * 2)
 
-        # Begin parsing groups
-        for i, group in enumerate(rawdata):
-            if not i:  # The first group contains the gameid, so check it with regex and set it if it's valid
-                gameid = group.splitlines()[0]
-                if re.match(gidrule, gameid) and not GameIDCheck(gameid, codelist):
-                    return
-            else:
-                # Initialize vars
-                lines = group.splitlines()
-                name = code = comment = author = ''
-                isenabled = False
+        # The first group contains the gameid, so check it with regex and set it if it's valid
+        gameid = rawdata[0].splitlines()[0]
+        if re.match(gidrule, gameid) and not GameIDCheck(gameid, codelist):
+            return
 
-                # Parse the group and match each line with the code line regex
-                for line in lines:
-                    m = re.match(linerule, line)
+        # Remove the parsed group
+        rawdata.pop(0)
 
-                    # It's a code line
-                    if m:
-                        if '*' in m[0]:  # Asterisks are used to mark enabled codes, so mark it as such
-                            isenabled = True
-                        code = '\n'.join([code, m[0].replace('* ', '')])
+        # Begin parsing codes
+        for group in rawdata:
+            name = code = comment = author = ''
+            isenabled = False
 
-                    # It's not a code line
-                    else:
-                        if name:  # We already have a name set, so add this line to the comment
-                            comment = '\n'.join([comment, line])
-                        else:  # The code doesn't have a name yet, so set it to this line. Also check for the author name
-                            lspl = line.split(' [')
-                            if len(lspl) > 1:
-                                for char in lspl[1]:
-                                    if char == ']':
-                                        break
-                                    author += char
-                            name = lspl[0]
+            # Parse group
+            for line in group.splitlines():
+                m = re.match(linerule, line)
 
-                # Failsafe if the code has no name
-                if not name:
-                    name = 'Unknown Code '
-                    unkcount += 1
-                    while listwidget.findItems(name + str(unkcount), Qt.MatchExactly):
-                        unkcount += 1
-                    name += str(unkcount)
+                # It's a code line
+                if m:
+                    if '*' in m[0]:  # Asterisks are used to mark enabled codes, so mark it as such
+                        isenabled = True
+                    code = '\n'.join([code, m[0].replace('* ', '')])
 
-                # Create the tree entry
-                newitem = ModdedTreeWidgetItem(name, False, True)
-
-                # Set the check accordingly
-                if isenabled:
-                    newitem.setCheckState(0, Qt.Checked)
-
-                # Determine parenthood
-                if parent and code:
-                    parent.addChild(newitem)  # Only nest codes, not categories, TXTs don't let you do this.
+                # It's not a code line
                 else:
-                    listwidget.addTopLevelItem(newitem)
+                    if name:  # We already have a name set, so add this line to the comment
+                        comment = '\n'.join([comment, line])
+                    else:  # The code doesn't have a name yet, so set it to this line. Also check for the author name
+                        lspl = line.split(' [')
+                        if len(lspl) > 1:
+                            for char in lspl[1]:
+                                if char == ']':
+                                    break
+                                author += char
+                        name = lspl[0]
 
-                # Finally, insert the data. What a wild ride.
-                if code:
+            # Failsafe if the code name is fully empty
+            if not name:
+                name = 'Unknown Code '
+                while listwidget.findItems(name + str(unkcount), Qt.MatchExactly):
+                    unkcount += 1
+                name += str(unkcount)
+
+            # If the name only contains "#" characters, it represents the end of a category, so don't add it to the tree
+            if not name.replace('#', ''):
+                currdepth = 0  # Reset depth
+                continue
+
+            # Else, create the tree item
+            else:
+                newitem = ModdedTreeWidgetItem(name.replace('#', ''), False, True)
+
+                # If it's a category, set the depth and the other flags
+                if not code:
+                    currdepth = name.count('#')
+                    parents[str(currdepth+1)] = newitem
+                    newitem.setAsCategory(True)
+
+                # Otherwise, it's a code, so add the code, comment and author
+                else:
                     newitem.setText(1, code[1:].upper())  # Force uppercase, because lowercase sucks.
                     newitem.setText(2, comment[1:])  # Btw, the first character is a newline, so i'm removing it.
                     newitem.setText(4, author)
+
+                    # If enabled, tick the check
+                    if isenabled:
+                        newitem.setCheckState(0, Qt.Checked)
+
+                    # If the name is unknown, look it up
                     if 'Unknown Code' in newitem.text(0):
                         globalstuff.mainWindow.CodeLookup(newitem, codelist, gameid)
+
+                # Set the item's parent. If there's a key error, don't do anything. Gotta stay safe.
+                try:
+                    parent = parents[str(currdepth)]
+                except KeyError:
+                    pass
+
+                # Determine parenthood
+                if parent:
+                    parent.addChild(newitem)
                 else:
-                    newitem.setAsCategory(True)
-                    parent = newitem
+                    listwidget.addTopLevelItem(newitem)
+
+                # This piece of code must be down here even if i don't like it
+                if not code:
+                    currdepth += 1
 
 
 def ImportINI(filename, codelist):
