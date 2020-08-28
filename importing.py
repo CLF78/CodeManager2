@@ -534,18 +534,18 @@ def ImportDOL(filename, codelist):
             # Read the section
             f.seek(sectionoffset)
             while f.tell() < sectionend:
-                # We found the gct magic, so add this to the buffer
+                # Read file
+                bytez = f.read(8)
+
+                # Check for the gct EOF, else add to the buffer if we found the magic
                 if shouldadd:
-                    buffer += f.read(8)
+                    buffer += bytez
+                    if bytez == b'\xf0' + b'\0' * 7:
+                        break
 
                 # Found the GCT magic, start reading from here
-                elif f.read(8) == b'\0\xd0\xc0\xde' * 2:
+                elif bytez == b'\0\xd0\xc0\xde' * 2:
                     shouldadd = True
-
-                # Found the end of codelist marker, stop reading
-                elif shouldadd and f.read(8) == b'\xf0' + b'\0' * 7:
-                    buffer += b'\xf0' + b'\0' * 7
-                    break
 
             # Skip the parsing if we didn't find anything
             if len(buffer) == 8:
