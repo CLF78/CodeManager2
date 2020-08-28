@@ -43,7 +43,7 @@ def TitleLookup(gid):
         with open(globalstuff.wiitdb, 'rb') as f:
             while True:
                 try:  # Read the line, split it and check the game id. If it matches, return the game name
-                    line = next(f).decode(encoding='utf-8', errors='ignore').split(' = ')
+                    line = next(f).decode('utf-8', 'ignore').split(' = ')
                     if line[0] == gid:
                         return line[1]
                 except StopIteration:  # We've reached EOF

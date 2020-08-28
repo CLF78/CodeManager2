@@ -10,7 +10,6 @@ def GameIDMismatch():
     msgbox.setWindowTitle('Game ID Mismatch')
     msgbox.setText("The Game ID in this codelist doesn't match this file's. Do you want to continue?")
     msgbox.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
-    msgbox.setDefaultButton(QtWidgets.QMessageBox.Yes)
     ret = msgbox.exec_()
     return ret
 
