@@ -59,6 +59,7 @@ class CodeList(QtWidgets.QWidget):
         self.importButton.clicked.connect(lambda: globalstuff.mainWindow.openCodelist(self))
         self.exportButton = QtWidgets.QPushButton('Export List')
         self.removeButton = QtWidgets.QPushButton('Remove Selected')
+        self.removeButton.clicked.connect(self.HandleRemove)
 
         # Configure the buttons
         self.EnableButtons()
@@ -131,7 +132,7 @@ class CodeList(QtWidgets.QWidget):
             child = item.child(i)
             if child:  # Failsafe
                 if child.childCount():
-                    self.cleanChildren(child)
+                    self.CleanChildren(child)
                 elif child.checkState(0) == Qt.Unchecked:
                     item.takeChild(i)
 
@@ -226,22 +227,49 @@ class CodeList(QtWidgets.QWidget):
         for window in winlist:
             window.setPlainText(destination.text(1))
 
+    def HandleRemove(self):
+        """
+        Handles item removal. Not much to say here :P
+        """
+        for item in CountCheckedCodes(self.Codelist, True):
+            if item.checkState(0) == Qt.Checked:  # Do not remove partially checked items
+
+                # Remove the item
+                if item.parent():
+                    item.parent().takeChild(item.parent().indexOfChild(item))
+                else:
+                    self.Codelist.takeTopLevelItem(self.Codelist.indexOfTopLevelItem(item))
+
+                # Set all code editor widgets that had this item as parent to None
+                for window in globalstuff.mainWindow.mdi.subWindowList():
+                    if isinstance(window.widget(), CodeEditor) and window.widget().parentz == item:
+                        window.parentz = None
+
+    def UpdateButton(self):
+        """
+        Enables the button to save the game id if it's valid
+        """
+        if len(self.gidInput.text()) > 3:
+            self.savegid.setEnabled(True)
+        else:
+            self.savegid.setEnabled(False)
+
     def SetGameID(self, gameid):
+        """
+        Sets the given game id in the variable, game id text field and window title. Also looks up the game name.
+        """
         if 4 <= len(gameid) <= 6:
             self.gameID = gameid
             self.gameName = TitleLookup(gameid)
             self.gidInput.setText(gameid)
         self.setWindowTitle('Codelist - {} [{}]'.format(self.gameName, self.gameID))
 
-    def UpdateButton(self):
-        if len(self.gidInput.text()) > 3:
-            self.savegid.setEnabled(True)
-        else:
-            self.savegid.setEnabled(False)
-
     def UpdateLines(self):
-        lines = 2
+        """
+        Updates the number of total code lines in the list
+        """
+        lines = 2  # One for the magic and one for the F0 terminator
         for item in CountCheckedCodes(self.Codelist, True):
-            if item.text(1):
-                lines += item.text(1).count('\n') + 1
+            if item.text(1):  # Only check codes
+                lines += item.text(1).count('\n') + 1  # +1 is because the first line doesn't have an "\n" character
         self.lineLabel.setText('Lines: ' + str(lines))
