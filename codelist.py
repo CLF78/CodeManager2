@@ -58,6 +58,7 @@ class CodeList(QtWidgets.QWidget):
         self.importButton = QtWidgets.QPushButton('Import List')
         self.importButton.clicked.connect(lambda: globalstuff.mainWindow.openCodelist(self))
         self.exportButton = QtWidgets.QPushButton('Export List')
+        self.exportButton.clicked.connect(lambda: globalstuff.mainWindow.exportList(self))
         self.removeButton = QtWidgets.QPushButton('Remove Selected')
         self.removeButton.clicked.connect(self.HandleRemove)
 

@@ -10,6 +10,7 @@ import globalstuff
 from codelist import CodeList
 from database import Database
 from importing import ImportTXT, ImportINI, ImportGCT, ImportDOL
+from exporting import ExportTXT, ExportINI, ExportGCT
 from titles import DownloadError
 
 
@@ -47,6 +48,10 @@ class MainWindow(QtWidgets.QMainWindow):
         imports.addAction('Import Database', self.openDatabase)
         imports.addAction('Import Codelist', lambda: self.openCodelist(None))
 
+        # Export menu
+        exports = bar.addMenu('&Export')
+        exports.addAction('Export All Codes To')
+
     def openDatabase(self):
         """
         Opens a dialog to let the user choose a database.
@@ -78,6 +83,22 @@ class MainWindow(QtWidgets.QMainWindow):
                 ImportGCT(file, source)
             elif '.dol' in file:
                 ImportDOL(file, source)
+
+    def exportList(self, source: QtWidgets.QTreeWidget):
+        """
+        Opens a QFileDialog to save a single codelist to a file.
+        """
+        file = QtWidgets.QFileDialog.getSaveFileName(self, 'Save Codelist To', '',
+                                                     'All supported formats (*.txt *.ini *.gct);;'
+                                                     'Text File (*.txt);;'
+                                                     'Dolphin INI (*.ini);;'
+                                                     'Gecko Code Table (*.gct)')[0]
+        if '.txt' in file:
+            ExportTXT(file, source)
+        elif '.ini' in file:
+            ExportINI(file, source)
+        elif '.gct' in file:
+            ExportGCT(file, source)
 
     @staticmethod
     def updateboxes():

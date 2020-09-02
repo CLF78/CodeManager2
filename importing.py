@@ -54,16 +54,16 @@ def ImportTXT(filename: str, codelist: CodeList):
     """
     Imports a TXT. This took longer than it should have.
     """
-    # Initialize vars
-    linerule = re.compile('^(\* )?[\w]{8} [\w]{8}', re.IGNORECASE)
-    unkcount = 1  # Used for codes without names
-    currdepth = 0  # Current depth, used for sub-categories
-    parents = {'0': None}  # This dict stores the parent for each level. Not the best solution, but it gets the job done.
-
     # Perform the initial operations. If they fail, abort everything.
     codelist = DoPreliminaryOperations(filename, codelist)
     if not codelist:
         return
+
+    # Initialize vars
+    linerule = re.compile('^(\* )?[\w]{8} [\w]{8}', re.I)
+    unkcount = 1  # Used for codes without names
+    currdepth = 0  # Current depth, used for sub-categories
+    parents = {'0': None}  # This dict stores the parent for each level. Not the best solution, but it gets the job done.
 
     # Set the tree widget
     listwidget = codelist.Codelist
@@ -499,13 +499,13 @@ def ImportDOL(filename: str, codelist: CodeList):
     """
     The ImportGCT twins' older sister.
     """
-    # Initialize vars
-    sections = []
-
     # Perform the initial operations. If they fail, abort everything.
     codelist = DoPreliminaryOperations(filename, codelist)
     if not codelist:
         return
+
+    # Initialize vars
+    sections = []
 
     # Do the parsing
     with open(filename, 'rb') as f:

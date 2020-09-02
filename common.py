@@ -47,5 +47,5 @@ def SelectItems(source: QtWidgets.QTreeWidget):
             item.setCheckState(0, Qt.Unchecked)
 
     # This for categories which aren't expanded
-    for item in filter(lambda x: x in source.selectedItems() and x.childCount() and x.isExpanded(), bucketlist):
+    for item in filter(lambda x: x in source.selectedItems() and x.childCount() and not x.isExpanded(), bucketlist):
         CheckChildren(item)
