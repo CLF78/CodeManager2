@@ -34,13 +34,14 @@ def DownloadTitles():
             return False
 
 
-def TitleLookup(gid):
+def TitleLookup(gid: str):
     """
     Looks up the game name for the given game id in the title database txt
     """
     # First, check the file is still here
     if os.path.exists(globalstuff.wiitdb):
         with open(globalstuff.wiitdb, 'rb') as f:
+            next(f)  # Skip first line
             while True:
                 try:  # Read the line, split it and check the game id. If it matches, return the game name
                     line = next(f).decode('utf-8', 'ignore').split(' = ')

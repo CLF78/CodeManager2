@@ -2,6 +2,8 @@
 The CodeEditor is a relatively simple window which shows a code, its name, author and comment. It also lets you edit it
 and open it with other windows, or add it to different lists.
 """
+from typing import Optional
+
 from PyQt5 import QtWidgets
 from PyQt5.Qt import Qt
 
@@ -39,11 +41,11 @@ class CodeEditor(QtWidgets.QWidget):
         self.setLayout(lyt)
 
 
-def HandleCodeOpen(item):
+def HandleCodeOpen(item: QtWidgets.QTreeWidgetItem):
     """
     Opens a tree's currently selected code in a CodeEditor window.
     """
-    if item and item.text(1):
+    if item.text(1):
         willcreate = True
         for window in globalstuff.mainWindow.mdi.subWindowList():  # Find if there's an existing CodeEditor with same parent and window title
             if isinstance(window.widget(), CodeEditor) and window.widget().parentz == item:
@@ -54,7 +56,7 @@ def HandleCodeOpen(item):
             HandleAddCode(item)
 
 
-def HandleAddCode(item):
+def HandleAddCode(item: Optional[QtWidgets.QTreeWidgetItem]):
     """
     Opens an empty CodeEditor sub-window.
     """
@@ -63,3 +65,12 @@ def HandleAddCode(item):
     win.setAttribute(Qt.WA_DeleteOnClose)
     globalstuff.mainWindow.mdi.addSubWindow(win)
     win.show()
+
+
+def CleanParentz(item: QtWidgets.QTreeWidgetItem):
+    """
+    Unsets the parentz parameter for the removed tree item.
+    """
+    for window in globalstuff.mainWindow.mdi.subWindowList():
+        if isinstance(window.widget(), CodeEditor) and window.widget().parentz == item:
+            window.parentz = None

@@ -3,6 +3,7 @@ This file contains multiple functions to import codelists.
 """
 import os
 import re
+from typing import Optional, BinaryIO
 
 from chardet import detect
 from PyQt5 import QtWidgets
@@ -14,21 +15,19 @@ from codelist import CodeList
 from widgets import ModdedSubWindow, ModdedTreeWidgetItem
 
 
-def GameIDCheck(gameid, codelist):
+def GameIDCheck(gameid: str, codelist: CodeList):
     """
     Checks if the game id matches the codelist's current one. If not, it alerts the user, asking them whether they
     want to continue importing or not.
     """
     if codelist.gameID != gameid:
-        if codelist.gameID != 'UNKW00':
-            ret = GameIDMismatch()  # Raise awareness!
-            if ret == QtWidgets.QMessageBox.No:
-                return False
+        if codelist.gameID != 'UNKW00' and GameIDMismatch() == QtWidgets.QMessageBox.No:
+            return False
         codelist.SetGameID(gameid)
     return True
 
 
-def DoPreliminaryOperations(filename, codelist):
+def DoPreliminaryOperations(filename: str, codelist: Optional[CodeList]):
     """
     This function performs a couple preliminary operations before importing can take place. Very informative, i know.
     """
@@ -51,7 +50,7 @@ def DoPreliminaryOperations(filename, codelist):
     return codelist
 
 
-def ImportTXT(filename, codelist):
+def ImportTXT(filename: str, codelist: CodeList):
     """
     Imports a TXT. This took longer than it should have.
     """
@@ -99,7 +98,7 @@ def ImportTXT(filename, codelist):
             if m:
                 if '*' in m[0]:  # Asterisks are used to mark enabled codes, so mark it as such
                     isenabled = True
-                code = '\n'.join([code, m[0].replace('* ', '')])
+                code = '\n'.join([code, m[0].strip('* ')])
 
             # It's not a code line
             else:
@@ -119,13 +118,13 @@ def ImportTXT(filename, codelist):
             name += str(unkcount)
 
         # If the name only contains "#" characters, it represents the end of a category, so don't add it to the tree
-        if not name.replace('#', ''):
+        if not name.strip('#'):
             currdepth = name.count('#') - 1
             continue
 
         # Else, create the tree item
         else:
-            newitem = ModdedTreeWidgetItem(name.replace('#', ''), False, True)
+            newitem = ModdedTreeWidgetItem(name.strip('#'), False, True)
 
             # If it's a category, set the depth and the other flags
             if not code:
@@ -164,7 +163,7 @@ def ImportTXT(filename, codelist):
                 currdepth += 1
 
 
-def ImportINI(filename, codelist):
+def ImportINI(filename: str, codelist: CodeList):
     """
     ImportTXT's prettier brother. Also, Dolphin is an asshole.
     """
@@ -232,6 +231,7 @@ def ImportINI(filename, codelist):
                 while listwidget.findItems(line + str(unkcount), Qt.MatchExactly):
                     unkcount += 1
                 line += str(unkcount)
+                unkcount += 1
 
             # Create the widget
             newitem = ModdedTreeWidgetItem(name, False, True)
@@ -262,7 +262,7 @@ def ImportINI(filename, codelist):
         listwidget.addTopLevelItem(item)
 
 
-def ImportGCT(filename, codelist):
+def ImportGCT(filename: str, codelist: CodeList):
     """
     ImportTXT's siamese twins.
     """
@@ -291,7 +291,7 @@ def ImportGCT(filename, codelist):
             msgbox.exec_()
 
 
-def ParseExtendedGCT(f, codelist):
+def ParseExtendedGCT(f: BinaryIO, codelist: CodeList):
     """
     BrawlBox allows you to store code names and offsets in the GCT. So, this is for GCTs using that feature.
     """
@@ -405,7 +405,7 @@ def ParseExtendedGCT(f, codelist):
         amount -= 1
 
 
-def ParseGCT(filename, f, codelist):
+def ParseGCT(filename: str, f: BinaryIO, codelist: CodeList):
     """
     This GCT parser is for the normal format. It tries to split codes according to the codetypes.
     """
@@ -452,6 +452,7 @@ def ParseGCT(filename, f, codelist):
             while listwidget.findItems(name + str(unkcount), Qt.MatchExactly):
                 unkcount += 1
             name += str(unkcount)
+            unkcount += 1
             newitem = ModdedTreeWidgetItem(name, False, True)
             newitem.setText(1, line.hex().upper())
             finalist.append(newitem)
@@ -474,12 +475,12 @@ def ParseGCT(filename, f, codelist):
                 amount = -1
                 currentcode = True
 
-            # Type C0/C2, F2 (length specified by code, in lines)
-            elif c == 192 or c == 194 or c == 195 or c == 242:
+            # Type C0, C2, C4, F2/F4 (length specified by code, in lines)
+            elif c == 192 or 194 <= c <= 197 or 242 <= c <= 245:
                 amount = int(line[7:].hex(), 16) - 1
                 currentcode = True
 
-    # Add spaces and newlines to the codes
+    # Add spaces and newlines to the codes, then add the items to the tree
     for item in finalist:
         assembledcode = ''
         for index, char in enumerate(item.text(1)):
@@ -490,14 +491,11 @@ def ParseGCT(filename, f, codelist):
             else:
                 assembledcode = ''.join([assembledcode, char])
         item.setText(1, assembledcode)
-
-    # Add the codes to the widget
-    for item in finalist:
         globalstuff.mainWindow.CodeLookup(item, listwidget, filename)
         listwidget.addTopLevelItem(item)
 
 
-def ImportDOL(filename, codelist):
+def ImportDOL(filename: str, codelist: CodeList):
     """
     The ImportGCT twins' older sister.
     """
@@ -565,7 +563,6 @@ def ImportDOL(filename, codelist):
             # Write the buffer to a temporary file, then feed it to the GCT parser
             with open('tmp.gct', 'wb+') as g:
                 g.write(buffer)
-                g.seek(0, 2)
                 ParseGCT('tmp.gct', g, codelist)
 
             # Remove the file

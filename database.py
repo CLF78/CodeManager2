@@ -1,6 +1,8 @@
 """
 Databases are basically read-only lists of codes read from an xml, which adds extra information to the manager.
 """
+from typing import Optional
+
 from lxml import etree
 from PyQt5 import QtWidgets
 from PyQt5.Qt import Qt
@@ -69,7 +71,7 @@ class Database(QtWidgets.QWidget):
         # Import the codes
         self.ParseDatabase(tree.xpath('category') + tree.xpath('code'), None, 3)  # The second tree is because there can be codes without a category
 
-    def ParseDatabase(self, tree, parent, depth):
+    def ParseDatabase(self, tree: etree, parent: Optional[QtWidgets.QTreeWidgetItem], depth: int):
         """
         Recursively create the code tree based on the xml
         """
@@ -107,7 +109,7 @@ class Database(QtWidgets.QWidget):
         else:
             self.AddButton.setEnabled(False)
 
-    def HandleSearch(self, text):
+    def HandleSearch(self, text: str):
         """
         Filters codes based on a given string
         """
@@ -117,7 +119,7 @@ class Database(QtWidgets.QWidget):
                 item.setHidden(False)  # Unhide the item if it's a code and it the text matches, then unhide its parents
                 self.UnhideParent(item)
 
-    def UnhideParent(self, item):
+    def UnhideParent(self, item: QtWidgets.QTreeWidgetItem):
         """
         Recursively unhides a given item's parents
         """

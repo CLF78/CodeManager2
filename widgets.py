@@ -2,7 +2,7 @@
 This file contains modified widgets used by various windows.
 """
 import globalstuff
-from PyQt5 import QtWidgets
+from PyQt5 import QtWidgets, QtGui
 from PyQt5.Qt import Qt
 
 
@@ -22,7 +22,7 @@ class ModdedTreeWidget(QtWidgets.QTreeWidget):
         header.setStretchLastSection(False)
         header.setSectionResizeMode(QtWidgets.QHeaderView.ResizeToContents)
 
-    def dragEnterEvent(self, e):
+    def dragEnterEvent(self, e: QtGui.QDragEnterEvent):
         """
         This forces the widget to accept drops, which would otherwise be rejected due to the InternalMove flag.
         """
@@ -30,7 +30,7 @@ class ModdedTreeWidget(QtWidgets.QTreeWidget):
         if isinstance(src, QtWidgets.QTreeWidget) or isinstance(src, ModdedTreeWidget):
             e.accept()
 
-    def dropEvent(self, e):
+    def dropEvent(self, e: QtGui.QDropEvent):
         """
         This bad hack adds a copy of the source widget's selected items in the destination widget. This is due to PyQt
         clearing the hidden columns, which we don't want.
@@ -85,6 +85,6 @@ class ModdedSubWindow(QtWidgets.QMdiSubWindow):
     def __init__(self):
         super().__init__()
 
-    def closeEvent(self, e):
+    def closeEvent(self, e: QtGui.QCloseEvent):
         globalstuff.mainWindow.updateboxes()
         QtWidgets.QMdiSubWindow.closeEvent(self, e)

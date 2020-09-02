@@ -6,7 +6,7 @@ from PyQt5 import QtWidgets
 from PyQt5.Qt import Qt
 
 import globalstuff
-from codeeditor import CodeEditor, HandleCodeOpen, HandleAddCode
+from codeeditor import CodeEditor, HandleCodeOpen, HandleAddCode, CleanParentz
 from common import CountCheckedCodes, SelectItems, GameIDMismatch
 from titles import TitleLookup
 from widgets import ModdedTreeWidget, ModdedTreeWidgetItem
@@ -107,10 +107,8 @@ class CodeList(QtWidgets.QWidget):
         """
         # Check for game id mismatch and update if necessary
         if gameid != self.gameID:
-            if self.gameID != 'UNKW00':
-                ret = GameIDMismatch()
-                if ret == QtWidgets.QMessageBox.No:
-                    return
+            if self.gameID != 'UNKW00' and GameIDMismatch() == QtWidgets.QMessageBox.No:
+                return
             self.SetGameID(gameid)
 
         # Add the codes
@@ -124,11 +122,11 @@ class CodeList(QtWidgets.QWidget):
         self.HandleSelection()
         self.UpdateLines()
 
-    def CleanChildren(self, item):
+    def CleanChildren(self, item: QtWidgets.QTreeWidgetItem):
         """
         The clone function duplicates unchecked children as well, so we're cleaning those off. I'm sorry, little ones.
         """
-        for i in range(0, item.childCount()):
+        for i in range(item.childCount()):
             child = item.child(i)
             if child:  # Failsafe
                 if child.childCount():
@@ -141,7 +139,7 @@ class CodeList(QtWidgets.QWidget):
         self.EnableButtons()
         self.UpdateLines()
 
-    def HandleClicking(self, item):
+    def HandleClicking(self, item: QtWidgets.QTreeWidgetItem):
         """
         Backups up the codename and checks the buttons
         """
@@ -166,7 +164,7 @@ class CodeList(QtWidgets.QWidget):
         self.mergeButton.setEnabled(canmerge)
 
     @staticmethod
-    def RenameWindows(item):
+    def RenameWindows(item: QtWidgets.QTreeWidgetItem):
         """
         When you rename a code, the program will look for code editors that originated from that code and update their
         window title accordingly
@@ -197,30 +195,41 @@ class CodeList(QtWidgets.QWidget):
         Temporarily removes all items without children, then orders the remaining items alphabetically. The removed
         items will then be ordered by code size and re-added to the tree.
         """
+        # Remove all codes
         backuplist = []
-        for item in self.Codelist.findItems('', Qt.MatchContains):
-            if item.text(1):
-                backuplist.append(self.Codelist.takeTopLevelItem(self.Codelist.indexOfTopLevelItem(item)))
-        self.Codelist.sortItems(0, Qt.AscendingOrder)  # Sort the categories alphabetically
-        backuplist.sort(key=lambda x: len(x.text(1)), reverse=True)  # Sort the backup list by code size (bigger codes first)
-        self.Codelist.insertTopLevelItems(self.Codelist.topLevelItemCount(), backuplist)  # Reinsert the items
+        for item in filter(lambda x: bool(x.text(1)), self.Codelist.findItems('', Qt.MatchContains)):
+            backuplist.append(self.Codelist.takeTopLevelItem(self.Codelist.indexOfTopLevelItem(item)))
 
-    def HandleMerge(self, mergedlist):
+        # Sort the categories alphabetically
+        self.Codelist.sortItems(0, Qt.AscendingOrder)
+
+        # Sort the backup list by code size (bigger codes first)
+        backuplist.sort(key=lambda x: len(x.text(1)), reverse=True)
+
+        # Reinsert the items
+        self.Codelist.insertTopLevelItems(self.Codelist.topLevelItemCount(), backuplist)
+
+    def HandleMerge(self, mergedlist: list):
         """
         Merges codes together
         """
         destination = None
-        for item in mergedlist:
-            if item.text(1) and not destination:  # It's the first code in the list, set it as destination
-                destination = item
-                destination.setText(2, '')  # Clear the comment and the placeholder lists, as they no longer apply
-                destination.setText(3, '')
-            elif item.text(1):
+        for item in filter(lambda x: bool(x.text(1)), mergedlist):
+
+            # We have a destination
+            if destination:
                 destination.setText(1, '\n'.join([destination.text(1), item.text(1)]))  # Merge the codes
+                CleanParentz(item)
                 if item.parent():
                     item.parent().takeChild(item.parent().indexOfChild(item))  # It's a child, tell the parent to kill him
                 else:
                     self.Codelist.takeTopLevelItem(self.Codelist.indexOfTopLevelItem(item))  # It's a parent, tell the codelist to kill him
+
+            # It's the first code in the list, set it as destination
+            else:
+                destination = item
+                destination.setText(2, '')  # Clear the comment and the placeholder lists, as they no longer apply
+                destination.setText(3, '')
 
         # Now find all instances of CodeEditor that have the destination code open, and update their code widget
         winlist = [window.widget().CodeContent for window in globalstuff.mainWindow.mdi.subWindowList() if isinstance(window.widget(), CodeEditor) and window.widget().parentz == destination]
@@ -231,19 +240,16 @@ class CodeList(QtWidgets.QWidget):
         """
         Handles item removal. Not much to say here :P
         """
-        for item in CountCheckedCodes(self.Codelist, True):
-            if item.checkState(0) == Qt.Checked:  # Do not remove partially checked items
+        for item in filter(lambda x: x.checkState(0) == Qt.Checked, CountCheckedCodes(self.Codelist, True)):
 
-                # Remove the item
-                if item.parent():
-                    item.parent().takeChild(item.parent().indexOfChild(item))
-                else:
-                    self.Codelist.takeTopLevelItem(self.Codelist.indexOfTopLevelItem(item))
+            # Remove the item
+            if item.parent():
+                item.parent().takeChild(item.parent().indexOfChild(item))
+            else:
+                self.Codelist.takeTopLevelItem(self.Codelist.indexOfTopLevelItem(item))
 
-                # Set all code editor widgets that had this item as parent to None
-                for window in globalstuff.mainWindow.mdi.subWindowList():
-                    if isinstance(window.widget(), CodeEditor) and window.widget().parentz == item:
-                        window.parentz = None
+            # Set all code editor widgets that had this item as parent to None
+            CleanParentz(item)
 
     def UpdateButton(self):
         """
@@ -254,7 +260,7 @@ class CodeList(QtWidgets.QWidget):
         else:
             self.savegid.setEnabled(False)
 
-    def SetGameID(self, gameid):
+    def SetGameID(self, gameid: str):
         """
         Sets the given game id in the variable, game id text field and window title. Also looks up the game name.
         """
@@ -269,7 +275,6 @@ class CodeList(QtWidgets.QWidget):
         Updates the number of total code lines in the list
         """
         lines = 2  # One for the magic and one for the F0 terminator
-        for item in CountCheckedCodes(self.Codelist, True):
-            if item.text(1):  # Only check codes
-                lines += item.text(1).count('\n') + 1  # +1 is because the first line doesn't have an "\n" character
+        for item in filter(lambda x: bool(x.text(1)), CountCheckedCodes(self.Codelist, True)):
+            lines += item.text(1).count('\n') + 1  # +1 is because the first line doesn't have an "\n" character
         self.lineLabel.setText('Lines: ' + str(lines))

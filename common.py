@@ -14,11 +14,11 @@ def GameIDMismatch():
     return ret
 
 
-def CheckChildren(item):
+def CheckChildren(item: QtWidgets.QTreeWidgetItem):
     """
     Recursively enables the check on an item's children
     """
-    for i in range(0, item.childCount()):
+    for i in range(item.childCount()):
         child = item.child(i)
         if child.childCount():
             CheckChildren(child)
@@ -26,19 +26,16 @@ def CheckChildren(item):
             child.setCheckState(0, Qt.Checked)
 
 
-def CountCheckedCodes(source, userecursive: bool):
+def CountCheckedCodes(source: QtWidgets.QTreeWidget, userecursive: bool):
     """
-    Returns a list of the codes currently enabled, based on certain criteria.
+    Returns a list of the codes currently enabled, based on certain criteria. Matchflag returns 64 if userecursive is
+    False, 1 if True.
     """
     userecursive = not userecursive
-    enabledlist = []
-    for item in source.findItems('', Qt.MatchContains | Qt.MatchFlag(64 >> 6 * userecursive)):  # This returns 64 if False, 1 if True
-        if item.checkState(0) > 0:  # We're looking for both partially checked and checked items
-            enabledlist.append(item)
-    return enabledlist
+    return filter(lambda x: bool(x.checkState(0)), source.findItems('', Qt.MatchContains | Qt.MatchFlag(64 >> 6 * userecursive)))
 
 
-def SelectItems(source):
+def SelectItems(source: QtWidgets.QTreeWidget):
     """
     Marks items as checked if they are selected, otherwise unchecks them
     """
@@ -50,6 +47,5 @@ def SelectItems(source):
             item.setCheckState(0, Qt.Unchecked)
 
     # This for categories which aren't expanded
-    for item in bucketlist:
-        if item in source.selectedItems() and item.childCount() and not item.isExpanded():
-            CheckChildren(item)
+    for item in filter(lambda x: x in source.selectedItems() and x.childCount() and x.isExpanded(), bucketlist):
+        CheckChildren(item)

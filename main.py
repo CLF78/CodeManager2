@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+from typing import Optional
 
 from PyQt5 import QtWidgets
 from PyQt5.Qt import Qt
@@ -56,10 +57,9 @@ class MainWindow(QtWidgets.QMainWindow):
             win.setWidget(Database(name))
             win.setAttribute(Qt.WA_DeleteOnClose)
             self.mdi.addSubWindow(win)
-            self.updateboxes()
             win.show()
 
-    def openCodelist(self, source):
+    def openCodelist(self, source: Optional[QtWidgets.QTreeWidget]):
         """
         Opens a QFileDialog to import a file
         """
@@ -94,13 +94,13 @@ class MainWindow(QtWidgets.QMainWindow):
                 for entry in entries:
                     database.Combox.addItem(entry.windowTitle()[11:], entry)  # Only keep game name and id
 
-    def CodeLookup(self, item, codelist, gid):
+    def CodeLookup(self, item: QtWidgets.QTreeWidgetItem, codelist: QtWidgets.QTreeWidget, gid: str):
         """
         Looks for a possible match in opened windows with the same game id.
         """
         # Build window list
-        wlist = [window.widget().DBrowser for window in self.mdi.subWindowList() if isinstance(window.widget(), Database) and window.widget().gameID == gid] + \
-                [window.widget().Codelist for window in self.mdi.subWindowList() if isinstance(window.widget(), CodeList) and window.widget().Codelist is not codelist and window.widget().gidInput.text() == gid]
+        wlist = [window.widget().DBrowser for window in self.mdi.subWindowList() if isinstance(window.widget(), Database) and window.widget().gameID == gid]
+        wlist.extend([window.widget().Codelist for window in self.mdi.subWindowList() if isinstance(window.widget(), CodeList) and window.widget().Codelist is not codelist and window.widget().gameID == gid])
 
         # Initialize vars
         lsplt = re.split('[ \n]', item.text(1))
