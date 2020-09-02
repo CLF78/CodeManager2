@@ -3,6 +3,7 @@ This file contains multiple functions to import codelists.
 """
 import os
 import re
+from itertools import chain
 from typing import Optional, BinaryIO
 
 from chardet import detect
@@ -208,6 +209,13 @@ def ImportINI(filename: str, codelist: CodeList):
     # We got the indexes, create the subsections. My palms are already sweating.
     gecko = rawdata[n:m]
     geckoenabled = rawdata[o:p]
+
+    # The rest of the file won't be wasted! It will be stored so if the user exports the list as ini, this data will be
+    # ported over.
+    if n or p != length or m != o-1:
+        scrap = '\n'.join(chain(rawdata[:n-1], rawdata[m:o-1], rawdata[p:]))
+        if scrap:
+            codelist.scrap = scrap
 
     # Initialize vars
     entrylist = []

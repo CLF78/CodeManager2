@@ -43,9 +43,63 @@ def ExportTXT(filename, source):
 
 
 def ExportINI(filename, source):
+    """
+    The simplest export function so far. A real piece of cake.
+    """
+    # Initialize vars
+    linerule = re.compile('^[\dA-F]{8} [\dA-F]{8}$', re.I | re.M)  # Ignore case + multiple lines
+    enabledlist = filter(lambda x: bool(x.text(1)), source.Codelist.findItems('', Qt.MatchContains | Qt.MatchRecursive))
+    geckostr = '[Gecko]'
+    geckoenabledstr = '\n[Gecko_Enabled]'  # Adding a new line because it's not at the beginning of the file
+
+    for item in enabledlist:
+
+        # Add code name, code and author if present. Code must be lowercase because Dolphin.
+        if item.text(4):
+            geckostr = ''.join([geckostr, '\n$', item.text(0), ' [', item.text(4), ']\n', item.text(1).lower()])
+        else:
+            geckostr = ''.join([geckostr, '\n$', item.text(0), '\n', item.text(1).lower()])
+
+        # Add comment if present
+        if item.text(2):
+            for line in item.text(2).splitlines():
+                geckostr = '\n*'.join([geckostr, line])
+        else:
+            geckostr += '\n*'
+
+        # Add to Gecko_Enabled if checked, but only if the code is valid
+        if item.checkState(0) == Qt.Checked and len(re.findall(linerule, item.text(1))) == item.text(1).count('\n') + 1:
+            geckoenabledstr = '\n$'.join([geckoenabledstr, item.text(0)])
+
+    # Open the file. Not using "with" here due to error handling later on
+    f = open(filename, 'w')
+
+    # Now that we opened the file, we can check if it can be written.
     if not WriteCheck(filename):
         return
-    print('sos')
+
+    # Write the codes!
+    f.write(geckostr)
+
+    # Only write gecko enabled if at least one code is enabled
+    if len(geckoenabledstr) > 16:
+        f.write(geckoenabledstr)
+
+    # Autosaved data was found, ask the user what they want to do with it.
+    if source.scrap:
+        msgbox = QtWidgets.QMessageBox()
+        msgbox.setWindowTitle('Additional Data Found')
+        msgbox.setText('Additional data was found in a previously imported .ini file. Port the data over to this file?')
+        msgbox.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
+        ret = msgbox.exec_()
+        if ret == QtWidgets.QMessageBox.Yes:
+            f.write('\n')
+            f.write(source.Codelist.scrap)
+            source.scrap = ''
+
+    # Write the final newline and close the file. Time to pack up and go home.
+    f.write('\n')
+    f.close()
 
 
 def ExportGCT(filename: str, source: CodeList):
@@ -87,6 +141,10 @@ def ExportGCT(filename: str, source: CodeList):
                     f.close()
                     os.remove(filename)  # Remove the incomplete file
                     return
+                else:
+                    f.seek(-8 * currline, 1)  # Go back to the beginning of this code
+                    f.truncate()  # Remove all lines after it, the code is broken
+                    break  # Go to next code
             currline += 1
         f.write(globalstuff.gctend)
         flen = f.tell()

@@ -65,10 +65,11 @@ class CodeList(QtWidgets.QWidget):
         # Configure the buttons
         self.EnableButtons()
 
-        # Set game id, game name and update the window title accordingly
+        # Set game id, game name and update the window title accordingly. Also add the scrap
         self.gameID = 'UNKW00'
         self.gameName = 'Unknown Game'
         self.SetGameID(wintitle)
+        self.scrap = ''
 
         # Game ID text field + save button
         self.gidInput = QtWidgets.QLineEdit()
