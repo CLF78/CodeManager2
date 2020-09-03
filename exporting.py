@@ -13,16 +13,17 @@ from codelist import CodeList
 from common import CountCheckedCodes
 
 
-def WriteCheck(filename: str):
+def WriteCheck(filename: str, silent: bool):
     """
     This function performs a couple preliminary operations before importing can take place. Very informative, i know.
     """
     # Check if we can write the file. If not, trigger an error message.
     if not os.access(filename, os.W_OK):
-        msgbox = QtWidgets.QMessageBox()
-        msgbox.setWindowTitle('File Write Error')
-        msgbox.setText("Can't write file " + filename)
-        msgbox.exec_()
+        if not silent:
+            msgbox = QtWidgets.QMessageBox()
+            msgbox.setWindowTitle('File Write Error')
+            msgbox.setText("Can't write file " + filename)
+            msgbox.exec_()
         return False
     return True
 
@@ -80,13 +81,13 @@ def InvalidCharacter(name: str, line: int, char: list):
     return ret
 
 
-def ExportTXT(filename, source):
+def ExportTXT(filename: str, source: CodeList, silent: bool):
     # Open the file
     f = open(filename, 'w')
 
     # Now that we opened the file, we can check if it can be written.
-    if not WriteCheck(filename):
-        return
+    if not WriteCheck(filename, silent):
+        return False
 
     # Initialize vars
     enabledlist = source.Codelist.findItems('', Qt.MatchContains)
@@ -101,9 +102,10 @@ def ExportTXT(filename, source):
     f.seek(f.tell() - 2)  # We have to use seek type 0 or the program will crash
     f.truncate()
     f.close()
+    return True
 
 
-def ExportINI(filename, source):
+def ExportINI(filename: str, source: CodeList, silent: bool):
     """
     The simplest export function so far. A real piece of cake.
     """
@@ -111,8 +113,8 @@ def ExportINI(filename, source):
     f = open(filename, 'w')
 
     # Now that we opened the file, we can check if it can be written.
-    if not WriteCheck(filename):
-        return
+    if not WriteCheck(filename, silent):
+        return False
 
     # Initialize vars
     linerule = re.compile('^[\dA-F]{8} [\dA-F]{8}$', re.I | re.M)  # Ignore case + multiple lines
@@ -149,12 +151,13 @@ def ExportINI(filename, source):
 
     # Autosaved data was found, ask the user what they want to do with it.
     if source.scrap:
-        msgbox = QtWidgets.QMessageBox()
-        msgbox.setWindowTitle('Additional Data Found')
-        msgbox.setText('Additional data was found in a previously imported .ini file. Port the data over to this file?')
-        msgbox.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
-        ret = msgbox.exec_()
-        if ret == QtWidgets.QMessageBox.Yes:
+        if not silent:
+            msgbox = QtWidgets.QMessageBox()
+            msgbox.setWindowTitle('Additional Data Found')
+            msgbox.setText('Additional data was found in a previously imported .ini file. Port the data over to this file?')
+            msgbox.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
+            ret = msgbox.exec_()
+        if silent or ret == QtWidgets.QMessageBox.Yes:
             f.write('\n')
             f.write(source.scrap)
             source.scrap = ''
@@ -162,9 +165,10 @@ def ExportINI(filename, source):
     # Write the final newline and close the file. Time to pack up and go home.
     f.write('\n')
     f.close()
+    return True
 
 
-def ExportGCT(filename: str, source: CodeList):
+def ExportGCT(filename: str, source: CodeList, silent: bool):
     """
     Exports a GCT in the regular format (screw BrawlBox)
     """
@@ -172,8 +176,8 @@ def ExportGCT(filename: str, source: CodeList):
     f = open(filename, 'wb')
 
     # Now that we opened the file, we can check if it can be written.
-    if not WriteCheck(filename):
-        return
+    if not WriteCheck(filename, silent):
+        return False
 
     # Initialize vars
     linerule = re.compile('^[\dA-F]{8} [\dA-F]{8}$', re.I)
@@ -199,19 +203,21 @@ def ExportGCT(filename: str, source: CodeList):
 
                 # Caught the offender. Also, something about a variable referenced before assignment. Not gonna write
                 # another rant about that shit.
-                if InvalidCharacter(item.text(0), currline, char) == QtWidgets.QMessageBox.No:
+                if not silent and InvalidCharacter(item.text(0), currline, char) == QtWidgets.QMessageBox.No:
                     f.close()
                     os.remove(filename)  # Remove the incomplete file
-                    return
+                    return False
                 else:
                     f.seek(-8 * currline, 1)  # Go back to the beginning of this code
                     f.truncate()  # Remove all lines after it, the code is broken
                     break  # Go to next code
             currline += 1
-        f.write(globalstuff.gctend)
-        flen = f.tell()
-        f.close()
+    f.write(globalstuff.gctend)
+    flen = f.tell()
+    f.close()
 
-        # If we didn't write anything at all, might as well remove the file
-        if flen == 16:
-            os.remove(filename)
+    # If we didn't write anything at all, might as well remove the file
+    if flen == 16:
+        os.remove(filename)
+        return False
+    return True

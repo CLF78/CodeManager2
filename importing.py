@@ -163,6 +163,9 @@ def ImportTXT(filename: str, codelist: CodeList):
             if not code:
                 currdepth += 1
 
+    # Finally, trigger the buttons in the codelist
+    codelist.EnableButtons()
+
 
 def ImportINI(filename: str, codelist: CodeList):
     """
@@ -268,6 +271,9 @@ def ImportINI(filename: str, codelist: CodeList):
 
         # Add to tree widget
         listwidget.addTopLevelItem(item)
+
+    # Finally, trigger the buttons in the codelist
+    codelist.EnableButtons()
 
 
 def ImportGCT(filename: str, codelist: CodeList):

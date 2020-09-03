@@ -23,6 +23,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setCentralWidget(self.mdi)
 
         # Create the menubar
+        self.optgct = self.optini = self.opttxt = None
         self.createMenubar()
 
         # Set window title and show the window maximized
@@ -50,7 +51,13 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Export menu
         exports = bar.addMenu('&Export')
-        exports.addAction('Export All Codes To')
+        exportopts = exports.addMenu('Export All Lists To')
+        self.optgct = exportopts.addAction('GCT', lambda: self.exportMultiple('gct'))
+        self.opttxt = exportopts.addAction('TXT', lambda: self.exportMultiple('txt'))
+        self.optini = exportopts.addAction('INI', lambda: self.exportMultiple('ini'))
+
+        # Update the menu
+        self.updateboxes()
 
     def openDatabase(self):
         """
@@ -88,32 +95,77 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         Opens a QFileDialog to save a single codelist to a file.
         """
-        file = QtWidgets.QFileDialog.getSaveFileName(self, 'Save Codelist To', '',
-                                                     'All supported formats (*.txt *.ini *.gct);;'
+        success = False
+        file = QtWidgets.QFileDialog.getSaveFileName(self, 'Save Codelist To', source.gameID,
+                                                     'Gecko Code Table (*.gct);;'
                                                      'Text File (*.txt);;'
-                                                     'Dolphin INI (*.ini);;'
-                                                     'Gecko Code Table (*.gct)')[0]
+                                                     'Dolphin INI (*.ini);;')[0]
         if '.txt' in file:
-            ExportTXT(file, source)
+            success = ExportTXT(file, source, False)
         elif '.ini' in file:
-            ExportINI(file, source)
+            success = ExportINI(file, source, False)
         elif '.gct' in file:
-            ExportGCT(file, source)
+            success = ExportGCT(file, source, False)
 
-    @staticmethod
-    def updateboxes():
+        # Inform the user
+        if success:
+            msgbox = QtWidgets.QMessageBox()
+            msgbox.setWindowTitle('Export Complete!')
+            msgbox.setText('List exported successfully!')
+            msgbox.exec_()
+
+    def exportMultiple(self, ext: str):
         """
-        Looks for opened codelist sub-windows and adds them to each database' combo box. Yes PyCharm, i know it is a
-        static method but no, i'm not gonna move it out of this class, so deal with it.
+        Exports all the currently opened codelists at once to the given format. Filename defaults to the game id.
         """
-        dblist = [window.widget() for window in globalstuff.mainWindow.mdi.subWindowList() if isinstance(window.widget(), Database)]
-        entries = [window.widget() for window in globalstuff.mainWindow.mdi.subWindowList() if isinstance(window.widget(), CodeList)]
+        # Get destination and codelists
+        dest = QtWidgets.QFileDialog.getExistingDirectory(self, 'Save all Codelists to', '', QtWidgets.QFileDialog.ShowDirsOnly)
+        entries = [window.widget() for window in self.mdi.subWindowList() if isinstance(window.widget(), CodeList)]
+        success = 0
+
+        # Do the thing
+        for entry in entries:
+
+            # Initialize vars
+            filename = os.path.join(dest, '.'.join([entry.gameID, ext]))
+            i = 2
+
+            # Check that the file doesn't exist, if so bump up the number
+            while os.path.isfile(filename):
+                filename = os.path.join(dest, '{}_{}.{}'.format(entry.gameID, i, ext))
+                i += 1
+
+            # Choose the correct function based on the provided extension
+            if ext == 'gct':
+                success += ExportGCT(filename, entry, True)
+            elif ext == 'txt':
+                success += ExportTXT(filename, entry, True)
+            elif ext == 'ini':
+                success += ExportINI(filename, entry, True)
+
+        # Inform the user
+        msgbox = QtWidgets.QMessageBox()
+        msgbox.setWindowTitle('Export Complete!')
+        msgbox.setText('{}/{} lists exported successfully!'.format(success, len(entries)))
+        msgbox.exec_()
+
+    def updateboxes(self):
+        """
+        Looks for opened codelist sub-windows and adds them to each database' combo box.
+        """
+        dblist = [window.widget() for window in self.mdi.subWindowList() if isinstance(window.widget(), Database)]
+        entries = [window.widget() for window in self.mdi.subWindowList() if isinstance(window.widget(), CodeList)]
         for database in dblist:
             if database.Combox.count() - 1 != len(entries):
                 database.Combox.clear()
                 database.Combox.addItem('Create New Codelist')
                 for entry in entries:
                     database.Combox.addItem(entry.windowTitle()[11:], entry)  # Only keep game name and id
+
+        notempty = bool(entries)
+        self.optgct.setEnabled(notempty)
+        self.opttxt.setEnabled(notempty)
+        self.optini.setEnabled(notempty)
 
     def CodeLookup(self, item: QtWidgets.QTreeWidgetItem, codelist: QtWidgets.QTreeWidget, gid: str):
         """

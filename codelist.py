@@ -62,8 +62,9 @@ class CodeList(QtWidgets.QWidget):
         self.removeButton = QtWidgets.QPushButton('Remove Selected')
         self.removeButton.clicked.connect(self.HandleRemove)
 
-        # Configure the buttons
+        # Configure the buttons and update the boxes
         self.EnableButtons()
+        globalstuff.mainWindow.updateboxes()
 
         # Set game id, game name and update the window title accordingly. Also add the scrap
         self.gameID = 'UNKW00'

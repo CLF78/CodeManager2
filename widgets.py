@@ -86,5 +86,5 @@ class ModdedSubWindow(QtWidgets.QMdiSubWindow):
         super().__init__()
 
     def closeEvent(self, e: QtGui.QCloseEvent):
-        globalstuff.mainWindow.updateboxes()
         QtWidgets.QMdiSubWindow.closeEvent(self, e)
+        globalstuff.mainWindow.updateboxes()

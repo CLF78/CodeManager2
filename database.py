@@ -140,5 +140,4 @@ class Database(QtWidgets.QWidget):
             win.widget().AddFromDatabase(enabledlist, self.gameID)
             win.setAttribute(Qt.WA_DeleteOnClose)
             globalstuff.mainWindow.mdi.addSubWindow(win)
-            globalstuff.mainWindow.updateboxes()
             win.show()
