@@ -27,6 +27,50 @@ def WriteCheck(filename: str):
     return True
 
 
+def WriteItems(f, enabledlist, depth):
+    """
+    This recursive function is used by the TXT exporter. So much fun.
+    """
+    for item in enabledlist:
+
+        # It's a category
+        if item.childCount():
+            f.write(''.join(['#' * depth, item.text(0), '\n\n']))  # Add the hashtags if we're in a nested category
+            WriteItems(f, [item.child(i) for i in range(item.childCount())], depth + 1)  # Recursive :o
+
+        # It's a code
+        else:
+
+            # Write the code name
+            f.write(item.text(0))
+
+            # If the code has an author, add it between "[]"
+            if item.text(4):
+                f.write(''.join([' [', item.text(4), ']']))
+
+            # If the code is enabled, add an asterisk at the beginning of each line
+            if item.checkState(0) == Qt.Checked:
+                f.writelines(['\n* ' + line for line in item.text(1).splitlines()])
+
+            # Otherwise just add a new line and write the entire code
+            else:
+                f.write('\n')
+                f.write(item.text(1))
+
+            # Add the comment if it exists, preceded by a newline
+            if item.text(2):
+                f.write('\n')
+                f.write(item.text(2))
+
+            # Add the final padding newlines
+            f.write('\n\n')
+
+    # We have reached the end of the list (or category). If we're in the latter, write the category escape character and the newlines
+    if depth > 0:
+        f.write('#' * depth)
+        f.write('\n\n')
+
+
 def InvalidCharacter(name: str, line: int, char: list):
     msgbox = QtWidgets.QMessageBox()
     msgbox.setWindowTitle('Invalid Line')
@@ -37,21 +81,46 @@ def InvalidCharacter(name: str, line: int, char: list):
 
 
 def ExportTXT(filename, source):
+    # Open the file
+    f = open(filename, 'w')
+
+    # Now that we opened the file, we can check if it can be written.
     if not WriteCheck(filename):
         return
-    print('sos')
+
+    # Initialize vars
+    enabledlist = source.Codelist.findItems('', Qt.MatchContains)
+
+    # Write the game id and name
+    f.write('\n'.join([source.gameID, source.gameName, '']))
+
+    # Write the codes!
+    WriteItems(f, enabledlist, 0)
+
+    # Remove the extra newline at the end, then close the file!
+    f.seek(f.tell() - 2)  # We have to use seek type 0 or the program will crash
+    f.truncate()
+    f.close()
 
 
 def ExportINI(filename, source):
     """
     The simplest export function so far. A real piece of cake.
     """
+    # Open the file. Not using "with" here due to error handling later on
+    f = open(filename, 'w')
+
+    # Now that we opened the file, we can check if it can be written.
+    if not WriteCheck(filename):
+        return
+
     # Initialize vars
     linerule = re.compile('^[\dA-F]{8} [\dA-F]{8}$', re.I | re.M)  # Ignore case + multiple lines
     enabledlist = filter(lambda x: bool(x.text(1)), source.Codelist.findItems('', Qt.MatchContains | Qt.MatchRecursive))
     geckostr = '[Gecko]'
     geckoenabledstr = '\n[Gecko_Enabled]'  # Adding a new line because it's not at the beginning of the file
 
+    # Assemble the giant strings
     for item in enabledlist:
 
         # Add code name, code and author if present. Code must be lowercase because Dolphin.
@@ -71,13 +140,6 @@ def ExportINI(filename, source):
         if item.checkState(0) == Qt.Checked and len(re.findall(linerule, item.text(1))) == item.text(1).count('\n') + 1:
             geckoenabledstr = '\n$'.join([geckoenabledstr, item.text(0)])
 
-    # Open the file. Not using "with" here due to error handling later on
-    f = open(filename, 'w')
-
-    # Now that we opened the file, we can check if it can be written.
-    if not WriteCheck(filename):
-        return
-
     # Write the codes!
     f.write(geckostr)
 
@@ -94,7 +156,7 @@ def ExportINI(filename, source):
         ret = msgbox.exec_()
         if ret == QtWidgets.QMessageBox.Yes:
             f.write('\n')
-            f.write(source.Codelist.scrap)
+            f.write(source.scrap)
             source.scrap = ''
 
     # Write the final newline and close the file. Time to pack up and go home.
@@ -106,17 +168,17 @@ def ExportGCT(filename: str, source: CodeList):
     """
     Exports a GCT in the regular format (screw BrawlBox)
     """
-    # Initialize vars
-    linerule = re.compile('^[\dA-F]{8} [\dA-F]{8}$', re.I)
-    charrule = re.compile('[\d A-F]', re.I)
-    enabledlist = filter(lambda x: bool(x.text(1)), CountCheckedCodes(source.Codelist, True))
-
     # Open the file. Not using "with" here due to error handling later on
     f = open(filename, 'wb')
 
     # Now that we opened the file, we can check if it can be written.
     if not WriteCheck(filename):
         return
+
+    # Initialize vars
+    linerule = re.compile('^[\dA-F]{8} [\dA-F]{8}$', re.I)
+    charrule = re.compile('[\d A-F]', re.I)
+    enabledlist = filter(lambda x: bool(x.text(1)), CountCheckedCodes(source.Codelist, True))
 
     # Write the gct!
     f.write(globalstuff.gctmagic)

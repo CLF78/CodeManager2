@@ -75,7 +75,7 @@ def ImportTXT(filename: str, codelist: CodeList):
 
     # Now that we read the file, detect its encoding and split it into groups (there's an empty line between each).
     # This is done because the original Code Manager saves in UTF-16, which would fuck up the formatting if not decoded.
-    rawdata = rawdata.decode(detect(rawdata)['encoding'], 'ignore').split('\r\n' * 2)
+    rawdata = rawdata.decode(detect(rawdata)['encoding'], 'ignore').split(os.linesep * 2)
 
     # The first group contains the gameid, so check it with regex and set it if it's valid
     gameid = rawdata[0].splitlines()[0]
@@ -99,7 +99,7 @@ def ImportTXT(filename: str, codelist: CodeList):
             if m:
                 if '*' in m[0]:  # Asterisks are used to mark enabled codes, so mark it as such
                     isenabled = True
-                code = '\n'.join([code, m[0].strip('* ')])
+                code = '\n'.join([code, m[0].lstrip('* ')])
 
             # It's not a code line
             else:
@@ -119,13 +119,13 @@ def ImportTXT(filename: str, codelist: CodeList):
             name += str(unkcount)
 
         # If the name only contains "#" characters, it represents the end of a category, so don't add it to the tree
-        if not name.strip('#'):
+        if not name.lstrip('#'):
             currdepth = name.count('#') - 1
             continue
 
         # Else, create the tree item
         else:
-            newitem = ModdedTreeWidgetItem(name.strip('#'), False, True)
+            newitem = ModdedTreeWidgetItem(name.lstrip('#'), False, True)
 
             # If it's a category, set the depth and the other flags
             if not code:
