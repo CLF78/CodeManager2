@@ -1,4 +1,4 @@
-# CodeManager2
+# Code Manager Reborn
 A revamped version of the Ocarina Code Manager
 
 # Required Modules

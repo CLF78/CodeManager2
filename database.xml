@@ -1,5 +1,6 @@
 <codelist>
 	<id>RMCP01</id>
+	<update version="1">https://raw.githubusercontent.com/H1dd3nM1nd/CodeManager2/master/database.xml?token=AHCOVHZ5HFJXKBV3HIR4UA27KJJP6</update>
 	<!--<plugin>mkw.py</plugin>-->
 	<category name="Item Behaviour">
 		<code name="All Items Can Land" author="MrBean" comment="This code lets every item (with the exception of the Thundercloud) land on the floor when dropped, and they can be activated by driving over them.">
