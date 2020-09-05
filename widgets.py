@@ -27,7 +27,7 @@ class ModdedTreeWidget(QtWidgets.QTreeWidget):
         This forces the widget to accept drops, which would otherwise be rejected due to the InternalMove flag.
         """
         src = e.source()
-        if isinstance(src, QtWidgets.QTreeWidget) or isinstance(src, ModdedTreeWidget):
+        if isinstance(src, QtWidgets.QTreeWidget):
             e.accept()
 
     def dropEvent(self, e: QtGui.QDropEvent):
@@ -74,7 +74,7 @@ class ModdedTreeWidgetItem(QtWidgets.QTreeWidgetItem):
     def setAsEditable(self, iseditable: bool):
         if iseditable:
             self.setFlags(self.flags() | Qt.ItemIsEditable)
-        else:
+        elif self.flags() & Qt.ItemIsEditable:
             self.setFlags(self.flags() ^ Qt.ItemIsEditable)
 
 
@@ -84,6 +84,7 @@ class ModdedSubWindow(QtWidgets.QMdiSubWindow):
     """
     def __init__(self):
         super().__init__()
+        self.setAttribute(Qt.WA_DeleteOnClose)
 
     def closeEvent(self, e: QtGui.QCloseEvent):
         QtWidgets.QMdiSubWindow.closeEvent(self, e)

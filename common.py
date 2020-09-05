@@ -49,3 +49,16 @@ def SelectItems(source: QtWidgets.QTreeWidget):
     # This for categories which aren't expanded
     for item in filter(lambda x: x in source.selectedItems() and x.childCount() and not x.isExpanded(), bucketlist):
         CheckChildren(item)
+
+
+def CleanChildren(item: QtWidgets.QTreeWidgetItem):
+    """
+    The clone function duplicates unchecked children as well, so we're cleaning those off. I'm sorry, little ones.
+    """
+    for i in range(item.childCount()):
+        child = item.child(i)
+        if child:  # Failsafe
+            if child.childCount():
+                CleanChildren(child)
+            elif child.checkState(0) == Qt.Unchecked:
+                item.takeChild(i)

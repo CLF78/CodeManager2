@@ -44,7 +44,6 @@ def DoPreliminaryOperations(filename: str, codelist: Optional[CodeList]):
     if not codelist:
         win = ModdedSubWindow()
         win.setWidget(CodeList(''))
-        win.setAttribute(Qt.WA_DeleteOnClose)
         globalstuff.mainWindow.mdi.addSubWindow(win)
         win.show()
         return win.widget()
@@ -67,7 +66,7 @@ def ImportTXT(filename: str, codelist: CodeList):
     parents = {'0': None}  # This dict stores the parent for each level. Not the best solution, but it gets the job done.
 
     # Set the tree widget
-    listwidget = codelist.Codelist
+    listwidget = codelist.TreeWidget
 
     # Open the file and read it
     with open(filename, 'rb') as f:
@@ -97,7 +96,7 @@ def ImportTXT(filename: str, codelist: CodeList):
 
             # It's a code line
             if m:
-                if '*' in m[0]:  # Asterisks are used to mark enabled codes, so mark it as such
+                if not isenabled and '*' in m[0]:  # Asterisks are used to mark enabled codes, so mark it as such
                     isenabled = True
                 code = '\n'.join([code, m[0].lstrip('* ')])
 
@@ -109,7 +108,7 @@ def ImportTXT(filename: str, codelist: CodeList):
                     lspl = line.split(' [')
                     name = lspl[0]
                     if len(lspl) > 1:
-                        author = lspl[1][:-1]  # Remove the last character
+                        author = lspl[1].rstrip(']')  # Remove the last character
 
         # Failsafe if the code name is fully empty
         if not name:
@@ -135,8 +134,8 @@ def ImportTXT(filename: str, codelist: CodeList):
 
             # Otherwise, it's a code, so add the code, comment and author
             else:
-                newitem.setText(1, code[1:].upper())  # Force uppercase, because lowercase sucks.
-                newitem.setText(2, comment[1:])  # Btw, the first character is a newline, so i'm removing it.
+                newitem.setText(1, code.lstrip('\n').upper())  # Force uppercase, because lowercase sucks.
+                newitem.setText(2, comment.lstrip('\n'))
                 newitem.setText(4, author)
 
                 # If enabled, tick the check
@@ -169,7 +168,7 @@ def ImportTXT(filename: str, codelist: CodeList):
 
 def ImportINI(filename: str, codelist: CodeList):
     """
-    ImportTXT's prettier brother. Also, Dolphin is an asshole.
+    ImportTXT's uglier brother. Also, Dolphin is an asshole.
     """
     # Perform the initial operations. If they fail, abort everything.
     codelist = DoPreliminaryOperations(filename, codelist)
@@ -177,7 +176,7 @@ def ImportINI(filename: str, codelist: CodeList):
         return
 
     # Set the tree widget
-    listwidget = codelist.Codelist
+    listwidget = codelist.TreeWidget
 
     # Set the gameID
     gameid = os.path.splitext(os.path.basename(filename))[0]  # Remove the file extension
@@ -226,35 +225,42 @@ def ImportINI(filename: str, codelist: CodeList):
 
     # Parse the gecko section
     for line in gecko:
-        if line.startswith('$'):  # It's a code name, and code names need some extra parsing
+
+        # It's a code name, and code names need some extra parsing
+        if line.startswith('$'):
 
             # First, we must exclude the author from the code name, as it will fuck up Gecko_Enabled otherwise
             lspl = line.split(' [')
+            name = lspl[0].lstrip('$')  # Remove the first character
 
-            name = lspl[0][1:]  # Remove the first character
+            # Set the author name if present
             author = ''
             if len(lspl) > 1:
-                author = lspl[1][:-1]  # Remove the last character
+                author = lspl[1].rstrip(']')  # Remove the last character
 
             # If the resulting name is empty, apply the following failsafe
-            if not len(name):
-                line = 'Unknown Code '
-                while listwidget.findItems(line + str(unkcount), Qt.MatchExactly):
+            if not name:
+                name = 'Unknown Code '
+                while listwidget.findItems(name + str(unkcount), Qt.MatchExactly):
                     unkcount += 1
-                line += str(unkcount)
+                name += str(unkcount)
                 unkcount += 1
 
             # Create the widget
             newitem = ModdedTreeWidgetItem(name, False, True)
             newitem.setText(4, author)
             entrylist.append(newitem)
-        elif line.startswith('*'):  # It's a comment line. Not using "and" because the line would end up in the "else"
+
+        # It's a comment line. Not using "and" because the line would end up in the "else"
+        elif line.startswith('*'):
             if len(line) > 1:
-                newitem.setText(2, '\n'.join([newitem.text(2), line[1:]]))  # Only add if the line is not empty
-        else:  # It's a code line
+                newitem.setText(2, '\n'.join([newitem.text(2), line.lstrip('*')]))  # Only add if the line is not empty
+
+        # It's a code line
+        else:
             newitem.setText(1, '\n'.join([newitem.text(1), line.upper()]))
 
-    # Parse the geckoenabled section and add the newly created widgets to the codelist.
+    # Parse the geckoenabled section and add the newly created widgets to the codelist
     for item in entrylist:
 
         # Enable the check if the name matches
@@ -262,8 +268,8 @@ def ImportINI(filename: str, codelist: CodeList):
             item.setCheckState(0, Qt.Checked)
 
         # Remove the extra newlines at the beginning of these two fields
-        item.setText(1, item.text(1)[1:])
-        item.setText(2, item.text(2)[1:])
+        item.setText(1, item.text(1).lstrip('\n'))
+        item.setText(2, item.text(2).lstrip('\n'))
 
         # Do code lookup if code doesn't have a name
         if 'Unknown Code' in item.text(0):
@@ -313,7 +319,7 @@ def ParseExtendedGCT(f: BinaryIO, codelist: CodeList):
     backupoffset = 0
 
     # Set the tree widget
-    listwidget = codelist.Codelist
+    listwidget = codelist.TreeWidget
 
     # First, let's get the file's length
     filelen = f.tell()
@@ -395,7 +401,7 @@ def ParseExtendedGCT(f: BinaryIO, codelist: CodeList):
         codename = lspl[0]
         author = ''
         if len(lspl) > 1:
-            author = lspl[1][:-1]  # Remove the last character
+            author = lspl[1].rstrip(']')  # Remove the last character
 
         # Go the comment and read it
         comment = ''
@@ -430,7 +436,7 @@ def ParseGCT(filename: str, f: BinaryIO, codelist: CodeList):
     finalist = []
 
     # Set the tree widget
-    listwidget = codelist.Codelist
+    listwidget = codelist.TreeWidget
 
     # First, let's get the file's length
     filelen = f.tell() - 8  # Ignore the F0 line
@@ -450,9 +456,9 @@ def ParseGCT(filename: str, f: BinaryIO, codelist: CodeList):
         # If we are currently in a code
         if currentcode:
             # If we have exhausted the amount of lines specified or we meet an "E0" line, don't add anymore lines
-            if amount == 0 or (amount == -1 and c == 224):
+            if amount == 0 or (amount == -1 and c == 0xE0):
                 currentcode = False
-            else:
+            elif amount > 0:
                 amount -= 1
 
             # Add the line. Yes PyCharm, i know newitem could be referenced before assignment, but currentcode is never
@@ -461,12 +467,14 @@ def ParseGCT(filename: str, f: BinaryIO, codelist: CodeList):
 
         # It's a new code!
         else:
-            # Create the tree widget item
+            # Set name
             name = 'Unknown Code '
             while listwidget.findItems(name + str(unkcount), Qt.MatchExactly):
                 unkcount += 1
             name += str(unkcount)
             unkcount += 1
+
+            # Create the tree widget item
             newitem = ModdedTreeWidgetItem(name, False, True)
             newitem.setText(1, line.hex().upper())
             finalist.append(newitem)
@@ -485,12 +493,12 @@ def ParseGCT(filename: str, f: BinaryIO, codelist: CodeList):
                 currentcode = True
 
             # Type 20-2F, 40, 42, 48, 4A, A8-AE, F6 (add lines until we find an E0 line)
-            elif 32 <= c <= 47 or c == 68 or c == 70 or c == 72 or c == 74 or 168 <= c <= 174 or c == 246:
+            elif 0x20 <= c <= 0x2F or c == 0x40 or c == 0x42 or c == 0x48 or c == 0x4A or 0xA8 <= c <= 0xAE or c == 0xF6:
                 amount = -1
                 currentcode = True
 
             # Type C0, C2, C4, F2/F4 (length specified by code, in lines)
-            elif c == 192 or 194 <= c <= 197 or 242 <= c <= 245:
+            elif c == 0xC0 or 0xC2 <= c <= 0xC5 or 0xF2 <= c <= 0xF5:
                 amount = int(line[7:].hex(), 16) - 1
                 currentcode = True
 
@@ -524,12 +532,12 @@ def ImportDOL(filename: str, codelist: CodeList):
     # Do the parsing
     with open(filename, 'rb') as f:
         # Get the entrypoint
-        f.seek(224)
+        f.seek(0xE0)
         entrypoint = int(f.read(4).hex(), 16)
 
         # Go to the text sections' loading address. The one with the same address as the entrypoint usually contains the
         # codehandler+gct. But other custom code might override this, so as an additional check for 0x80001800 is made
-        f.seek(72)
+        f.seek(0x48)
         for i in range(7):
             secmem = int(f.read(4).hex(), 16)
             if secmem == entrypoint or secmem == 0x80001800:
@@ -547,7 +555,7 @@ def ImportDOL(filename: str, codelist: CodeList):
             # Get the section offset and length
             f.seek(4 * section)
             sectionoffset = int(f.read(4).hex(), 16)
-            f.seek(144 + section * 4)
+            f.seek(0x90 + section * 4)
             sectionend = sectionoffset + int(f.read(4).hex(), 16)
 
             # Initialize vars

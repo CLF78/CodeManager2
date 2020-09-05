@@ -6,8 +6,8 @@ from PyQt5 import QtWidgets
 from PyQt5.Qt import Qt
 
 import globalstuff
-from codeeditor import CodeEditor, HandleCodeOpen, HandleAddCode, CleanParentz
-from common import CountCheckedCodes, SelectItems, GameIDMismatch
+from codeeditor import CodeEditor, HandleCodeOpen, HandleAddCode, CleanParentz, RenameWindows
+from common import CountCheckedCodes, SelectItems, GameIDMismatch, CleanChildren
 from titles import TitleLookup
 from widgets import ModdedTreeWidget, ModdedTreeWidgetItem
 
@@ -17,15 +17,15 @@ class CodeList(QtWidgets.QWidget):
         super().__init__()
 
         # Create the codelist and connect it to the handlers
-        self.Codelist = ModdedTreeWidget()
-        self.Codelist.itemSelectionChanged.connect(self.HandleSelection)
-        self.Codelist.itemDoubleClicked.connect(HandleCodeOpen)
-        self.Codelist.itemChanged.connect(self.RenameWindows)
-        self.Codelist.itemClicked.connect(self.HandleClicking)  # Using the status tip as a backup option
+        self.TreeWidget = ModdedTreeWidget()
+        self.TreeWidget.itemSelectionChanged.connect(self.HandleSelection)
+        self.TreeWidget.itemDoubleClicked.connect(HandleCodeOpen)
+        self.TreeWidget.itemChanged.connect(RenameWindows)
+        self.TreeWidget.itemClicked.connect(self.HandleClicking)  # Using the status tip as a backup option
 
         # Merge button, up here for widget height purposes
         self.mergeButton = QtWidgets.QPushButton('Merge Selected')
-        self.mergeButton.clicked.connect(lambda: self.HandleMerge(CountCheckedCodes(self.Codelist, True)))
+        self.mergeButton.clicked.connect(lambda: self.HandleMerge(CountCheckedCodes(self.TreeWidget, True)))
 
         # Add button+menu
         addMenu = QtWidgets.QMenu()
@@ -33,26 +33,23 @@ class CodeList(QtWidgets.QWidget):
         addMenu.addAction('Add Category', self.HandleAddCategory)
         self.addButton = QtWidgets.QToolButton()
         self.addButton.setDefaultAction(deface)  # Do this if you click the Add button instead of the arrow
-        self.addButton.setMenu(addMenu)
         self.addButton.setFixedHeight(self.mergeButton.sizeHint().height())  # Makes this the same height as QPushButton
+        self.addButton.setMenu(addMenu)
         self.addButton.setPopupMode(QtWidgets.QToolButton.MenuButtonPopup)
         self.addButton.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Preferred)  # Use full widget width
         self.addButton.setText('Add')
-        self.addButton.setToolButtonStyle(Qt.ToolButtonTextOnly)
 
         # Sort button+menu
         sortMenu = QtWidgets.QMenu()
-        defact = sortMenu.addAction('Alphabetical', lambda: self.Codelist.sortItems(0, Qt.AscendingOrder))  # The unknown soldier
-        sortMenu.addAction('Alphabetical (Reverse)', lambda: self.Codelist.sortItems(0, Qt.DescendingOrder))  # The unknown soldier's sibiling
+        defact = sortMenu.addAction('Alphabetical', lambda: self.TreeWidget.sortItems(0, Qt.AscendingOrder))  # The unknown soldier
+        sortMenu.addAction('Alphabetical (Reverse)', lambda: self.TreeWidget.sortItems(0, Qt.DescendingOrder))  # The unknown soldier's sibiling
         sortMenu.addAction('Size', self.SortListSize)
         self.sortButton = QtWidgets.QToolButton()
         self.sortButton.setDefaultAction(defact)  # Do this if you click the Sort button instead of the arrow
         self.sortButton.setMenu(sortMenu)
-        self.sortButton.setFixedHeight(self.mergeButton.sizeHint().height())  # Makes this the same height as QPushButton
         self.sortButton.setPopupMode(QtWidgets.QToolButton.MenuButtonPopup)
         self.sortButton.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Preferred)  # Use full widget width
         self.sortButton.setText('Sort')
-        self.sortButton.setToolButtonStyle(Qt.ToolButtonTextOnly)
 
         # Import and Remove buttons
         self.importButton = QtWidgets.QPushButton('Import List')
@@ -64,23 +61,21 @@ class CodeList(QtWidgets.QWidget):
 
         # Configure the buttons and update the boxes
         self.EnableButtons()
-        globalstuff.mainWindow.updateboxes()
+
+        # Game ID text field + save button
+        self.gidInput = QtWidgets.QLineEdit()
+        self.gidInput.setPlaceholderText('Insert GameID here...')
+        self.gidInput.setMaxLength(6)
+        self.gidInput.textEdited.connect(self.UpdateButton)
+        self.savegid = QtWidgets.QPushButton('Save')
+        self.savegid.setEnabled(False)
+        self.savegid.clicked.connect(lambda: self.SetGameID(self.gidInput.text()))
 
         # Set game id, game name and update the window title accordingly. Also add the scrap
         self.gameID = 'UNKW00'
         self.gameName = 'Unknown Game'
         self.SetGameID(wintitle)
         self.scrap = ''
-
-        # Game ID text field + save button
-        self.gidInput = QtWidgets.QLineEdit()
-        self.gidInput.setPlaceholderText('Insert GameID here...')
-        self.gidInput.setMaxLength(6)
-        self.gidInput.setText(self.gameID)
-        self.gidInput.textEdited.connect(self.UpdateButton)
-        self.savegid = QtWidgets.QPushButton('Save')
-        self.savegid.setEnabled(False)
-        self.savegid.clicked.connect(lambda: self.SetGameID(self.gidInput.text()))
 
         # Make a horizontal layout for these two
         formlyt = QtWidgets.QHBoxLayout()
@@ -94,7 +89,7 @@ class CodeList(QtWidgets.QWidget):
         # Make a layout and set it
         lyt = QtWidgets.QGridLayout()
         lyt.addLayout(formlyt, 0, 0, 1, 2)
-        lyt.addWidget(self.Codelist, 1, 0, 1, 2)
+        lyt.addWidget(self.TreeWidget, 1, 0, 1, 2)
         lyt.addWidget(self.lineLabel, 2, 0, 1, 2)
         lyt.addWidget(self.addButton, 3, 0)
         lyt.addWidget(self.sortButton, 3, 1)
@@ -118,27 +113,15 @@ class CodeList(QtWidgets.QWidget):
         for item in enabledlist:
             clone = item.clone()
             clone.setFlags(clone.flags() | Qt.ItemIsEditable)  # Gotta enable renaming, hehe.
-            self.Codelist.addTopLevelItem(clone)
-            self.CleanChildren(clone)
+            self.TreeWidget.addTopLevelItem(clone)
+            CleanChildren(clone)
 
         # Update the selection
         self.HandleSelection()
         self.UpdateLines()
 
-    def CleanChildren(self, item: QtWidgets.QTreeWidgetItem):
-        """
-        The clone function duplicates unchecked children as well, so we're cleaning those off. I'm sorry, little ones.
-        """
-        for i in range(item.childCount()):
-            child = item.child(i)
-            if child:  # Failsafe
-                if child.childCount():
-                    self.CleanChildren(child)
-                elif child.checkState(0) == Qt.Unchecked:
-                    item.takeChild(i)
-
     def HandleSelection(self):
-        SelectItems(self.Codelist)
+        SelectItems(self.TreeWidget)
         self.EnableButtons()
         self.UpdateLines()
 
@@ -154,7 +137,7 @@ class CodeList(QtWidgets.QWidget):
         """
         Enables the Remove, Export and Merge button if the respective conditions are met
         """
-        for item in CountCheckedCodes(self.Codelist, True):
+        for item in CountCheckedCodes(self.TreeWidget, True):
             if item.text(1):
                 if canexport:
                     canmerge = True
@@ -166,32 +149,13 @@ class CodeList(QtWidgets.QWidget):
         self.exportButton.setEnabled(canexport)
         self.mergeButton.setEnabled(canmerge)
 
-    @staticmethod
-    def RenameWindows(item: QtWidgets.QTreeWidgetItem):
-        """
-        When you rename a code, the program will look for code editors that originated from that code and update their
-        window title accordingly
-        """
-        # First, verify that the name is not empty. If so, restore the original string and clear the backup.
-        if not item.text(0):
-            item.setText(0, item.statusTip(0))
-            item.setStatusTip(0, '')
-            return  # Since there was no update, we don't need to run the below stuff
-
-        # Do the rename
-        for window in [window for window in globalstuff.mainWindow.mdi.subWindowList() if isinstance(window.widget(), CodeEditor) and window.widget().parentz == item]:
-            if item.text(4):
-                window.widget().setWindowTitle('Code Editor - {} [{}]'.format(item.text(0), item.text(4)))
-            else:
-                window.widget().setWindowTitle('Code Editor - {}'.format(item.text(0)))
-
     def HandleAddCategory(self):
         """
         Adds a new category to the codelist
         """
         newitem = ModdedTreeWidgetItem('', True, True)
-        self.Codelist.addTopLevelItem(newitem)
-        self.Codelist.editItem(newitem, 0)  # Let the user rename it immediately
+        self.TreeWidget.addTopLevelItem(newitem)
+        self.TreeWidget.editItem(newitem, 0)  # Let the user rename it immediately
 
     def SortListSize(self):
         """
@@ -200,33 +164,37 @@ class CodeList(QtWidgets.QWidget):
         """
         # Remove all codes
         backuplist = []
-        for item in filter(lambda x: bool(x.text(1)), self.Codelist.findItems('', Qt.MatchContains)):
-            backuplist.append(self.Codelist.takeTopLevelItem(self.Codelist.indexOfTopLevelItem(item)))
+        for item in filter(lambda x: bool(x.text(1)), self.TreeWidget.findItems('', Qt.MatchContains)):
+            backuplist.append(self.TreeWidget.takeTopLevelItem(self.TreeWidget.indexOfTopLevelItem(item)))
 
         # Sort the categories alphabetically
-        self.Codelist.sortItems(0, Qt.AscendingOrder)
+        self.TreeWidget.sortItems(0, Qt.AscendingOrder)
 
         # Sort the backup list by code size (bigger codes first)
         backuplist.sort(key=lambda x: len(x.text(1)), reverse=True)
 
         # Reinsert the items
-        self.Codelist.insertTopLevelItems(self.Codelist.topLevelItemCount(), backuplist)
+        self.TreeWidget.insertTopLevelItems(self.TreeWidget.topLevelItemCount(), backuplist)
 
     def HandleMerge(self, mergedlist: list):
         """
         Merges codes together
         """
+        # Initialize vars
         destination = None
+        wlist = [w.widget() for w in globalstuff.mainWindow.mdi.subWindowList() if isinstance(w.widget(), CodeEditor)]
+
+        # Begin working
         for item in filter(lambda x: bool(x.text(1)), mergedlist):
 
             # We have a destination
             if destination:
                 destination.setText(1, '\n'.join([destination.text(1), item.text(1)]))  # Merge the codes
-                CleanParentz(item)
+                CleanParentz(item, wlist)
                 if item.parent():
                     item.parent().takeChild(item.parent().indexOfChild(item))  # It's a child, tell the parent to kill him
                 else:
-                    self.Codelist.takeTopLevelItem(self.Codelist.indexOfTopLevelItem(item))  # It's a parent, tell the codelist to kill him
+                    self.TreeWidget.takeTopLevelItem(self.TreeWidget.indexOfTopLevelItem(item))  # It's a parent, tell the codelist to kill him
 
             # It's the first code in the list, set it as destination
             else:
@@ -235,24 +203,27 @@ class CodeList(QtWidgets.QWidget):
                 destination.setText(3, '')
 
         # Now find all instances of CodeEditor that have the destination code open, and update their code widget
-        winlist = [window.widget().CodeContent for window in globalstuff.mainWindow.mdi.subWindowList() if isinstance(window.widget(), CodeEditor) and window.widget().parentz == destination]
-        for window in winlist:
-            window.setPlainText(destination.text(1))
+        for window in wlist:
+            if window.parentz == destination:
+                window.setPlainText(destination.text(1))
+                return
 
     def HandleRemove(self):
         """
         Handles item removal. Not much to say here :P
         """
-        for item in filter(lambda x: x.checkState(0) == Qt.Checked, CountCheckedCodes(self.Codelist, True)):
+        wlist = [w.widget() for w in globalstuff.mainWindow.mdi.subWindowList() if isinstance(w.widget(), CodeEditor)]
+        for item in filter(lambda x: x.checkState(0) == Qt.Checked, CountCheckedCodes(self.TreeWidget, True)):
 
             # Remove the item
             if item.parent():
                 item.parent().takeChild(item.parent().indexOfChild(item))
             else:
-                self.Codelist.takeTopLevelItem(self.Codelist.indexOfTopLevelItem(item))
+                self.TreeWidget.takeTopLevelItem(self.TreeWidget.indexOfTopLevelItem(item))
 
             # Set all code editor widgets that had this item as parent to None
-            CleanParentz(item)
+            if item.text(1):
+                CleanParentz(item, wlist)
 
     def UpdateButton(self):
         """
@@ -271,13 +242,14 @@ class CodeList(QtWidgets.QWidget):
             self.gameID = gameid
             self.gameName = TitleLookup(gameid)
             self.gidInput.setText(gameid)
-        self.setWindowTitle('Codelist - {} [{}]'.format(self.gameName, self.gameID))
+        self.setWindowTitle('Codelist - {} [{}]'.format(self.gameName, gameid))
+        globalstuff.mainWindow.updateboxes()
 
     def UpdateLines(self):
         """
         Updates the number of total code lines in the list
         """
         lines = 2  # One for the magic and one for the F0 terminator
-        for item in filter(lambda x: bool(x.text(1)), CountCheckedCodes(self.Codelist, True)):
+        for item in filter(lambda x: bool(x.text(1)), CountCheckedCodes(self.TreeWidget, True)):
             lines += item.text(1).count('\n') + 1  # +1 is because the first line doesn't have an "\n" character
         self.lineLabel.setText('Lines: ' + str(lines))

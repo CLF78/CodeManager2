@@ -26,9 +26,26 @@ class CodeEditor(QtWidgets.QWidget):
             self.placeholders = parent.text(3)
             self.author = parent.text(4)
 
-        # Create the code and comment forms and set the window title
+        # Create the author, code and comment forms
+        self.AuthorLabel = QtWidgets.QLabel('Author:')
+        self.CodeAuthor = QtWidgets.QLineEdit(self.author)
+        self.CodeLabel = QtWidgets.QLabel('Code:')
         self.CodeContent = QtWidgets.QPlainTextEdit(self.code)
+        self.CommentLabel = QtWidgets.QLabel('Comment:')
         self.CodeComment = QtWidgets.QPlainTextEdit(self.comment)
+
+        # Save button
+        self.SaveButton = QtWidgets.QPushButton('Save Changes')
+        self.SaveButton.setEnabled(False)
+
+        # Add the opened codelist combo box
+        self.Combox = QtWidgets.QComboBox()
+        self.Combox.addItem('Create New Codelist')
+
+        # Finally, add the "Add" button
+        self.AddButton = QtWidgets.QPushButton('Add to Codelist')
+
+        # Set the window title
         if self.author:
             self.setWindowTitle('Code Editor - {} [{}]'.format(self.name, self.author))
         else:
@@ -36,8 +53,15 @@ class CodeEditor(QtWidgets.QWidget):
 
         # Make a layout and set it
         lyt = QtWidgets.QGridLayout()
-        lyt.addWidget(self.CodeContent, 0, 0)
-        lyt.addWidget(self.CodeComment, 1, 0)
+        lyt.addWidget(self.AuthorLabel, 0, 0, 1, 2)
+        lyt.addWidget(self.CodeAuthor, 1, 0, 1, 2)
+        lyt.addWidget(self.CodeLabel, 2, 0, 1, 2)
+        lyt.addWidget(self.CodeContent, 3, 0, 1, 2)
+        lyt.addWidget(self.CommentLabel, 4, 0, 1, 2)
+        lyt.addWidget(self.CodeComment, 5, 0, 1, 2)
+        lyt.addWidget(self.SaveButton, 6, 0, 1, 2)
+        lyt.addWidget(self.Combox, 7, 0)
+        lyt.addWidget(self.AddButton, 7, 1)
         self.setLayout(lyt)
 
 
@@ -64,13 +88,36 @@ def HandleAddCode(item: Optional[QtWidgets.QTreeWidgetItem]):
     win.setWidget(CodeEditor(item))
     win.setAttribute(Qt.WA_DeleteOnClose)
     globalstuff.mainWindow.mdi.addSubWindow(win)
+    globalstuff.mainWindow.updateboxes()
     win.show()
 
 
-def CleanParentz(item: QtWidgets.QTreeWidgetItem):
+def CleanParentz(item: QtWidgets.QTreeWidgetItem, wlist: list):
     """
     Unsets the parentz parameter for the removed tree item.
     """
-    for window in globalstuff.mainWindow.mdi.subWindowList():
-        if isinstance(window.widget(), CodeEditor) and window.widget().parentz == item:
+    for window in wlist:
+        if window.parentz == item:
             window.parentz = None
+            break
+
+
+def RenameWindows(item: QtWidgets.QTreeWidgetItem):
+    """
+    When you rename a code, the program will look for code editors that originated from that code and update their
+    window title accordingly
+    """
+    # First, verify that the name is not empty. If so, restore the original string and clear the backup.
+    if not item.text(0):
+        item.setText(0, item.statusTip(0))
+        item.setStatusTip(0, '')
+        return  # Since there was no update, we don't need to run the below stuff
+
+    # Do the rename
+    for window in globalstuff.mainWindow.mdi.subWindowList():
+        if isinstance(window.widget(), CodeEditor) and window.widget.parentz == item:
+            if item.text(4):
+                window.widget().setWindowTitle('Code Editor - {} [{}]'.format(item.text(0), item.text(4)))
+            else:
+                window.widget().setWindowTitle('Code Editor - {}'.format(item.text(0)))
+            return

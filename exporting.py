@@ -87,10 +87,12 @@ def ExportTXT(filename: str, source: CodeList, silent: bool):
 
     # Now that we opened the file, we can check if it can be written.
     if not WriteCheck(filename, silent):
+        f.close()
+        os.remove(filename)
         return False
 
     # Initialize vars
-    enabledlist = source.Codelist.findItems('', Qt.MatchContains)
+    enabledlist = source.TreeWidget.findItems('', Qt.MatchContains)
 
     # Write the game id and name
     f.write('\n'.join([source.gameID, source.gameName, '']))
@@ -114,11 +116,13 @@ def ExportINI(filename: str, source: CodeList, silent: bool):
 
     # Now that we opened the file, we can check if it can be written.
     if not WriteCheck(filename, silent):
+        f.close()
+        os.remove(filename)
         return False
 
     # Initialize vars
     linerule = re.compile('^[\dA-F]{8} [\dA-F]{8}$', re.I | re.M)  # Ignore case + multiple lines
-    enabledlist = filter(lambda x: bool(x.text(1)), source.Codelist.findItems('', Qt.MatchContains | Qt.MatchRecursive))
+    enabledlist = filter(lambda x: bool(x.text(1)), source.TreeWidget.findItems('', Qt.MatchContains | Qt.MatchRecursive))
     geckostr = '[Gecko]'
     geckoenabledstr = '\n[Gecko_Enabled]'  # Adding a new line because it's not at the beginning of the file
 
@@ -177,12 +181,14 @@ def ExportGCT(filename: str, source: CodeList, silent: bool):
 
     # Now that we opened the file, we can check if it can be written.
     if not WriteCheck(filename, silent):
+        f.close()
+        os.remove(filename)
         return False
 
     # Initialize vars
     linerule = re.compile('^[\dA-F]{8} [\dA-F]{8}$', re.I)
     charrule = re.compile('[\d A-F]', re.I)
-    enabledlist = filter(lambda x: bool(x.text(1)), CountCheckedCodes(source.Codelist, True))
+    enabledlist = filter(lambda x: bool(x.text(1)), CountCheckedCodes(source.TreeWidget, True))
 
     # Write the gct!
     f.write(globalstuff.gctmagic)
@@ -194,15 +200,13 @@ def ExportGCT(filename: str, source: CodeList, silent: bool):
             # Make sure there are no non-hex characters
             if re.match(linerule, line):
                 f.write(unhexlify(line.replace(' ', '')))  # Didn't strip spaces earlier for line count purposes ;)
+                currline += 1
 
             # There's an invalid character! FIND HIM!
             else:
-                for char in line:
-                    if not re.match(charrule, char):
-                        break
+                char = re.sub(charrule, '', line)[0]
 
-                # Caught the offender. Also, something about a variable referenced before assignment. Not gonna write
-                # another rant about that shit.
+                # Caught the offender. You're under arrest!
                 if not silent and InvalidCharacter(item.text(0), currline, char) == QtWidgets.QMessageBox.No:
                     f.close()
                     os.remove(filename)  # Remove the incomplete file
@@ -211,7 +215,8 @@ def ExportGCT(filename: str, source: CodeList, silent: bool):
                     f.seek(-8 * currline, 1)  # Go back to the beginning of this code
                     f.truncate()  # Remove all lines after it, the code is broken
                     break  # Go to next code
-            currline += 1
+
+    # Finish it off
     f.write(globalstuff.gctend)
     flen = f.tell()
     f.close()

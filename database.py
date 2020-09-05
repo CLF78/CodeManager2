@@ -4,6 +4,7 @@ Databases are basically read-only lists of codes read from an xml, which adds ex
 import os
 import shutil
 import urllib.request
+from pkg_resources import parse_version as vercomp
 from typing import Optional
 
 from lxml import etree
@@ -12,7 +13,7 @@ from PyQt5.Qt import Qt
 
 import globalstuff
 from codelist import CodeList
-from codeeditor import HandleCodeOpen, CleanParentz
+from codeeditor import CodeEditor, HandleCodeOpen, CleanParentz
 from common import CountCheckedCodes, SelectItems
 from titles import TitleLookup
 from widgets import ModdedTreeWidgetItem, ModdedSubWindow
@@ -23,16 +24,16 @@ class Database(QtWidgets.QWidget):
         super().__init__()
 
         # Create the Database Browser and connect it to the handlers
-        self.DBrowser = QtWidgets.QTreeWidget()
-        self.DBrowser.itemSelectionChanged.connect(self.HandleSelection)
-        self.DBrowser.itemDoubleClicked.connect(HandleCodeOpen)
-        self.DBrowser.itemClicked.connect(self.EnableButtons)
+        self.TreeWidget = QtWidgets.QTreeWidget()
+        self.TreeWidget.itemSelectionChanged.connect(self.HandleSelection)
+        self.TreeWidget.itemDoubleClicked.connect(HandleCodeOpen)
+        self.TreeWidget.itemClicked.connect(self.EnableButtons)
 
         # Set the proper flags
-        self.DBrowser.setHeaderHidden(True)
-        self.DBrowser.setSelectionMode(QtWidgets.QTreeWidget.ExtendedSelection)
-        self.DBrowser.setDragDropMode(QtWidgets.QAbstractItemView.DragOnly)
-        header = self.DBrowser.header()  # The following leaves some space on the right, to allow dragging the selection
+        self.TreeWidget.setHeaderHidden(True)
+        self.TreeWidget.setSelectionMode(QtWidgets.QTreeWidget.ExtendedSelection)
+        self.TreeWidget.setDragDropMode(QtWidgets.QAbstractItemView.DragOnly)
+        header = self.TreeWidget.header()  # The following leaves some space on the right, to allow dragging the selection
         header.setStretchLastSection(False)
         header.setSectionResizeMode(QtWidgets.QHeaderView.ResizeToContents)
 
@@ -44,7 +45,6 @@ class Database(QtWidgets.QWidget):
         # Add the opened codelist combo box
         self.Combox = QtWidgets.QComboBox()
         self.Combox.addItem('Create New Codelist')
-        globalstuff.mainWindow.updateboxes()
 
         # Finally, add the "Add" button
         self.AddButton = QtWidgets.QPushButton('Add to Codelist')
@@ -53,11 +53,12 @@ class Database(QtWidgets.QWidget):
 
         # Finally, add the "Update" button
         self.UpdateButton = QtWidgets.QPushButton('Download Updates')
+        self.UpdateButton.clicked.connect(self.UpdateDatabase)
 
         # Make a layout and set it
         lyt = QtWidgets.QGridLayout()
         lyt.addWidget(self.SearchBar, 0, 0, 1, 2)
-        lyt.addWidget(self.DBrowser, 1, 0, 1, 2)
+        lyt.addWidget(self.TreeWidget, 1, 0, 1, 2)
         lyt.addWidget(self.Combox, 2, 0)
         lyt.addWidget(self.AddButton, 2, 1)
         lyt.addWidget(self.UpdateButton, 3, 0, 1, 2)
@@ -76,14 +77,15 @@ class Database(QtWidgets.QWidget):
             self.gameName = 'Unknown Game'
         self.setWindowTitle('Database Browser - {} [{}]'.format(self.gameName, self.gameID))
 
-        # Add the update url and enable the button if present
+        # Add the update url
         try:
-            self.ver = int(tree.xpath('update')[0].attrib['version'])
+            self.ver = tree.xpath('update')[0].attrib['version']
             self.updateURL = tree.xpath('update')[0].text
         except:
-            self.ver = 0
+            self.ver = '0'
             self.updateURL = ''
 
+        # Enable the update button if an url present
         self.UpdateButton.setEnabled(bool(self.updateURL))
 
         # Import the codes
@@ -100,7 +102,7 @@ class Database(QtWidgets.QWidget):
             if parent:
                 parent.addChild(newitem)
             else:
-                self.DBrowser.addTopLevelItem(newitem)
+                self.TreeWidget.addTopLevelItem(newitem)
 
             # Determine type of entry
             if entry.tag == 'category':
@@ -109,20 +111,16 @@ class Database(QtWidgets.QWidget):
             elif entry.tag == 'code':
                 newitem.setText(1, entry[0].text[1:-depth].upper())
                 newitem.setText(2, entry.attrib['comment'])
-                newitem.setText(3, str([(pl.attrib['letter'],
-                                         int(pl.attrib['type']),
-                                         pl.attrib['comment'],
-                                         pl.attrib['args'].split(',')) for pl in entry.xpath('placeholder')]))
                 newitem.setText(4, entry.attrib['author'])
 
     def HandleSelection(self):
         # Do the selection
-        SelectItems(self.DBrowser)
+        SelectItems(self.TreeWidget)
         self.EnableButtons()
 
     def EnableButtons(self):
         # Update the Add button
-        if CountCheckedCodes(self.DBrowser, False):
+        if list(CountCheckedCodes(self.TreeWidget, False)):
             self.AddButton.setEnabled(True)
         else:
             self.AddButton.setEnabled(False)
@@ -131,10 +129,13 @@ class Database(QtWidgets.QWidget):
         """
         Filters codes based on a given string
         """
-        for item in self.DBrowser.findItems('', Qt.MatchContains | Qt.MatchRecursive):
-            item.setHidden(True)  # Hide all items
-            if text.lower() in item.text(0).lower() and item.text(1):
-                item.setHidden(False)  # Unhide the item if it's a code and it the text matches, then unhide its parents
+        for item in self.TreeWidget.findItems('', Qt.MatchContains | Qt.MatchRecursive):
+            # Hide all items
+            item.setHidden(True)
+
+            # Unhide the item if its name or code match, then unhide its parents
+            if item.text(1) and text.lower() in item.text(0).lower() or text.lower() in item.text(1).lower():
+                item.setHidden(False)
                 self.UnhideParent(item)
 
     def UnhideParent(self, item: QtWidgets.QTreeWidgetItem):
@@ -143,21 +144,21 @@ class Database(QtWidgets.QWidget):
         """
         if item.parent():
             item.parent().setHidden(False)
-            self.unhideParent(item.parent())
+            self.UnhideParent(item.parent())
 
     def HandleAdd(self):
         """
         Transfers the selected codes to the chosen codelist
         """
-        enabledlist = CountCheckedCodes(self.DBrowser, False)
+        enabledlist = CountCheckedCodes(self.TreeWidget, False)
         if self.Combox.currentIndex() > 0:
             self.Combox.currentData().AddFromDatabase(enabledlist, self.gameID)
         else:
             win = ModdedSubWindow()
-            win.setWidget(CodeList(''))
+            win.setWidget(CodeList(self.gameID))
             win.widget().AddFromDatabase(enabledlist, self.gameID)
-            win.setAttribute(Qt.WA_DeleteOnClose)
             globalstuff.mainWindow.mdi.addSubWindow(win)
+            globalstuff.mainWindow.updateboxes()
             win.show()
 
     def UpdateDatabase(self):
@@ -179,29 +180,36 @@ class Database(QtWidgets.QWidget):
             else:
                 return
 
-        # Get the tree and the version
-        tree = etree.parse('tmp.xml').getroot()
-        ver = int(tree.xpath('update')[0].attrib['version'])
+        # Get the tree and the version. If the program fails to do so, quietly exit
+        try:
+            tree = etree.parse('tmp.xml').getroot()
+            ver = tree.xpath('update')[0].attrib['version']
+        except:
+            os.remove('tmp.xml')
+            return
 
-        # Check that the version is newer, otherwise exit
-        if ver <= self.ver:
+        # Check that the new version is actually newer, otherwise exit
+        if vercomp(ver) <= vercomp(self.ver):
             msgbox = QtWidgets.QMessageBox()
             msgbox.setWindowTitle('Up to date')
             msgbox.setText('Database is up to date!')
             msgbox.exec_()
             os.remove('tmp.xml')
             return
-        else:
-            self.ver = ver
+
+        # Change the string
+        self.ver = ver
 
         # Clean the parentz parameter of affected Code Editors
-        for item in filter(lambda x: bool(x.text(1)), self.DBrowser.findItems('', Qt.MatchContains | Qt.MatchRecursive)):
-            CleanParentz(item)
+        # The window list is created earlier so it isn't generated a gazillion times in the for loop
+        wlist = [w.widget() for w in globalstuff.mainWindow.mdi.subWindowList() if isinstance(w.widget(), CodeEditor)]
+        for item in filter(lambda x: bool(x.text(1)), self.TreeWidget.findItems('', Qt.MatchContains | Qt.MatchRecursive)):
+            CleanParentz(item, wlist)
 
         # Clear the tree and import the codes
-        self.DBrowser.clear()
+        self.TreeWidget.clear()
         self.ParseDatabase(tree.xpath('category') + tree.xpath('code'), None, 3)
 
-        # Overwrite the original name and disable the update button, since we don't need it.
+        # Overwrite the original file and disable the update button, since we no longer need it.
         shutil.move('tmp.xml', self.dbfile)
         self.UpdateButton.setEnabled(False)
