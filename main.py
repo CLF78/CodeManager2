@@ -110,10 +110,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
             # Inform the user
             if success:
-                msgbox = QtWidgets.QMessageBox()
-                msgbox.setWindowTitle('Export Complete!')
-                msgbox.setText('List exported successfully!')
-                msgbox.exec_()
+                QtWidgets.QMessageBox.information(self, 'Export Complete', 'List exported succesfully!')
 
     def exportMultiple(self, ext: str):
         """
@@ -143,10 +140,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Inform the user
         if success:
-            msgbox = QtWidgets.QMessageBox()
-            msgbox.setWindowTitle('Export Complete!')
-            msgbox.setText('{}/{} lists exported successfully!'.format(success, total))
-            msgbox.exec_()
+            QtWidgets.QMessageBox.information(self, 'Export Complete', '{}/{} lists exported successfully!'.format(success, total))
 
     def updateboxes(self):
         """
@@ -182,7 +176,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
             # Add the remaining windows if they meet the condition
             for entry in entries:
-                window.Combox.addItem(entry.windowTitle()[11:], entry)  # Only keep game name and id
+                window.Combox.addItem(entry.windowTitle().lstrip('Codelist - '), entry)  # Only keep game name and id
 
     def CodeLookup(self, item: QtWidgets.QTreeWidgetItem, codelist: QtWidgets.QTreeWidget, gid: str):
         """
@@ -197,8 +191,8 @@ class MainWindow(QtWidgets.QMainWindow):
         # Begin search!
         for widget in wlist:
 
-            # Mark code matches from different regions with an additional asterisk
-            regmatch = not(bool(widget.gameID == gid)) + 1
+            # Mark code matches from different game ids with an additional asterisk
+            regmatch = int(not(bool(widget.gameID == gid))) + 1
 
             # Process the widget's tree
             for child in filter(lambda x: x.text(1), widget.TreeWidget.findItems('', Qt.MatchContains | Qt.MatchRecursive)):
@@ -223,7 +217,7 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         # Initialize vars
         code = src.ParseCode()
-        comment = re.sub('\n{2,}', '\n', src.CodeComment.toPlainText())
+        comment = re.sub('\n{2,}', '\n', src.CodeComment.toPlainText())  # Consecutive new lines can screw things up
         author = src.CodeAuthor.text()
 
         # Create a new codelist if dest is None

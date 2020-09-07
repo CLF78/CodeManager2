@@ -2,7 +2,6 @@
 The CodeEditor is a relatively simple window which shows a code, its name, author and comment. It also lets you edit it
 and open it with other windows, or add it to different lists.
 """
-import os
 import re
 from typing import Optional
 
@@ -10,6 +9,7 @@ from PyQt5 import QtGui, QtWidgets
 from PyQt5.Qt import Qt
 
 import globalstuff
+from common import AssembleCode
 
 
 class CodeEditor(QtWidgets.QWidget):
@@ -59,7 +59,7 @@ class CodeEditor(QtWidgets.QWidget):
         # Finally, add the "Add" button
         self.AddButton = QtWidgets.QPushButton('Save to Codelist')
         self.AddButton.clicked.connect(lambda: globalstuff.mainWindow.AddFromEditor(self, self.Combox.currentData()))
-        if code:
+        if not code:
             self.AddButton.setEnabled(False)
 
         # Set the window title
@@ -117,6 +117,9 @@ class CodeEditor(QtWidgets.QWidget):
         # Update window title
         self.ParseAuthor(author)
 
+        # Disable the save button
+        self.SaveButton.setEnabled(False)
+
     def ParseCode(self):
         """
         Parses the code to make sure it is formatted properly.
@@ -129,15 +132,7 @@ class CodeEditor(QtWidgets.QWidget):
             code += '0'
 
         # Assemble the code and force uppercase
-        assembledcode = ''
-        for index, char in enumerate(code):
-            if not index % 16 and index:
-                assembledcode = '\n'.join([assembledcode, char.upper()])
-            elif not index % 8 and index:
-                assembledcode = ' '.join([assembledcode, char.upper()])
-            else:
-                assembledcode = ''.join([assembledcode, char.upper()])
-        return assembledcode
+        return AssembleCode(code)
 
     def ParseAuthor(self, author):
         """
@@ -149,16 +144,12 @@ class CodeEditor(QtWidgets.QWidget):
         else:
             self.setWindowTitle('Code Editor - {}'.format(self.name))
 
-        # Disable the save button
-        self.SaveButton.setEnabled(False)
 
-
-def HandleCodeOpen(item: QtWidgets.QTreeWidgetItem, fromdb: bool):
+def HandleCodeOpen(item: QtWidgets.QTreeWidgetItem, fromdb: bool, willcreate=True):
     """
     Opens a tree's currently selected code in a CodeEditor window.
     """
     if item.text(1):
-        willcreate = True
         for window in globalstuff.mainWindow.mdi.subWindowList():  # Find if there's an existing CodeEditor with same parent and window title
             if isinstance(window.widget(), CodeEditor) and window.widget().parentz == item:
                 willcreate = False
@@ -202,11 +193,11 @@ def RenameWindows(item: QtWidgets.QTreeWidgetItem):
         return  # Since there was no update, we don't need to run the below stuff
 
     # Do the rename
-    for window in globalstuff.mainWindow.mdi.subWindowList():
-        if isinstance(window.widget(), CodeEditor) and window.widget().parentz == item:
-            window.widget().CodeName.setText(item.text(0))
+    for w in globalstuff.mainWindow.mdi.subWindowList():
+        if isinstance(w.widget(), CodeEditor) and w.widget().parentz == item:
+            w.widget().CodeName.setText(item.text(0))
             if item.text(4):
-                window.widget().setWindowTitle('Code Editor - {} [{}]'.format(item.text(0), item.text(4)))
+                w.widget().setWindowTitle('Code Editor - {} [{}]'.format(item.text(0), item.text(4)))
             else:
-                window.widget().setWindowTitle('Code Editor - {}'.format(item.text(0)))
+                w.widget().setWindowTitle('Code Editor - {}'.format(item.text(0)))
             return

@@ -6,15 +6,11 @@ from PyQt5 import QtWidgets
 
 
 def DownloadError():
-    msgbox = QtWidgets.QMessageBox()
-    msgbox.setWindowTitle('Title Database Missing')
-    msgbox.setText("The Title Database (wiitdb.txt) is missing. Do you want to download it?")
-    msgbox.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
-    ret = msgbox.exec_()
-    if ret == QtWidgets.QMessageBox.Yes:
+    msgbox = QtWidgets.QMessageBox.question(globalstuff.mainWindow, 'Title Database Missing',
+                                            'The Title Database (wiitdb.txt) is missing. Do you want to download it?')
+    if msgbox == QtWidgets.QMessageBox.Yes:
         return DownloadTitles()
-    else:
-        return False
+    return False
 
 
 def DownloadTitles():
@@ -23,12 +19,9 @@ def DownloadTitles():
             dst.write(src.read())
         return True
     except:
-        msgbox = QtWidgets.QMessageBox()
-        msgbox.setWindowTitle('Download Error')
-        msgbox.setText("There was an error during the database download. Retry?")
-        msgbox.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
-        ret = msgbox.exec_()
-        if ret == QtWidgets.QMessageBox.Yes:
+        msgbox = QtWidgets.QMessageBox.question(globalstuff.mainWindow, 'Download Error',
+                                                'There was an error during the database download. Retry?')
+        if msgbox == QtWidgets.QMessageBox.Yes:
             DownloadTitles()
         else:
             return False
@@ -45,7 +38,7 @@ def TitleLookup(gid: str):
             while True:
                 try:  # Read the line, split it and check the game id. If it matches, return the game name
                     line = next(f).decode('utf-8', 'ignore').split(' = ')
-                    if line[0] == gid:
+                    if line[0].lower() == gid.lower():
                         return line[1]
                 except StopIteration:  # We've reached EOF
                     return 'Unknown Game'

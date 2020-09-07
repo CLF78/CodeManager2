@@ -20,10 +20,7 @@ def WriteCheck(filename: str, silent: bool):
     # Check if we can write the file. If not, trigger an error message.
     if not os.access(filename, os.W_OK):
         if not silent:
-            msgbox = QtWidgets.QMessageBox()
-            msgbox.setWindowTitle('File Write Error')
-            msgbox.setText("Can't write file " + filename)
-            msgbox.exec_()
+            QtWidgets.QMessageBox.critical(globalstuff.mainWindow, 'File Write Error', "Can't write file " + filename)
         return False
     return True
 
@@ -34,10 +31,11 @@ def WriteItems(f, enabledlist, depth):
     """
     for item in enabledlist:
 
-        # It's a category
-        if item.childCount():
-            f.write(''.join(['#' * depth, item.text(0), '\n\n']))  # Add the hashtags if we're in a nested category
-            WriteItems(f, [item.child(i) for i in range(item.childCount())], depth + 1)  # Recursive :o
+        # It's a category. Write it only if it's not empty.
+        if not item.text(1):
+            if item.childCount():
+                f.write(''.join(['#' * depth, item.text(0), '\n\n']))  # Add the hashtags if we're in a nested category
+                WriteItems(f, [item.child(i) for i in range(item.childCount())], depth + 1)  # Recursive :o
 
         # It's a code
         else:
@@ -73,12 +71,11 @@ def WriteItems(f, enabledlist, depth):
 
 
 def InvalidCharacter(name: str, line: int, char: list):
-    msgbox = QtWidgets.QMessageBox()
-    msgbox.setWindowTitle('Invalid Line')
-    msgbox.setText(''.join(['Invalid character "<b>', char, '</b>" in code "<b>', name, '</b>" in line <b>', str(line), '</b>. Continue exporting?']))
-    msgbox.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
-    ret = msgbox.exec_()
-    return ret
+    msgbox = QtWidgets.QMessageBox.question(globalstuff.mainWindow, 'Invalid Line', ''.join(['Invalid character "<b>', char,
+                                                                                             '</b>" in code "<b>', name,
+                                                                                             '</b>" in line <b>', str(line),
+                                                                                             '</b>. Continue exporting?']))
+    return msgbox
 
 
 def ExportTXT(filename: str, source: CodeList, silent: bool):
@@ -156,12 +153,10 @@ def ExportINI(filename: str, source: CodeList, silent: bool):
     # Autosaved data was found, ask the user what they want to do with it.
     if source.scrap:
         if not silent:
-            msgbox = QtWidgets.QMessageBox()
-            msgbox.setWindowTitle('Additional Data Found')
-            msgbox.setText('Additional data was found in a previously imported .ini file. Port the data over to this file?')
-            msgbox.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
-            ret = msgbox.exec_()
-        if silent or ret == QtWidgets.QMessageBox.Yes:
+            msgbox = QtWidgets.QMessageBox.question(globalstuff.mainWindow, 'Additional Data Found',
+                                                    'Additional data was found in a previously imported .ini file.'
+                                                    'Port the data over to this file?')
+        if silent or msgbox == QtWidgets.QMessageBox.Yes:
             f.write('\n')
             f.write(source.scrap)
             source.scrap = ''
@@ -186,8 +181,8 @@ def ExportGCT(filename: str, source: CodeList, silent: bool):
         return False
 
     # Initialize vars
-    linerule = re.compile('^[\dA-F]{8} [\dA-F]{8}$', re.I)
     charrule = re.compile('[\d A-F]', re.I)
+    linerule = re.compile('^[\dA-F]{8} [\dA-F]{8}$', re.I)
     enabledlist = filter(lambda x: bool(x.text(1)), CountCheckedCodes(source.TreeWidget, True))
 
     # Write the gct!

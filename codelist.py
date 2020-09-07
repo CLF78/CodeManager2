@@ -21,7 +21,7 @@ class CodeList(QtWidgets.QWidget):
         self.TreeWidget.itemSelectionChanged.connect(self.HandleSelection)
         self.TreeWidget.itemDoubleClicked.connect(lambda x: HandleCodeOpen(x, False))
         self.TreeWidget.itemChanged.connect(RenameWindows)
-        self.TreeWidget.itemClicked.connect(self.HandleClicking)  # Using the status tip as a backup option
+        self.TreeWidget.itemClicked.connect(self.HandleClicking)
 
         # Merge button, up here for widget height purposes
         self.mergeButton = QtWidgets.QPushButton('Merge Selected')
@@ -29,7 +29,7 @@ class CodeList(QtWidgets.QWidget):
 
         # Add button+menu
         addMenu = QtWidgets.QMenu()
-        deface = addMenu.addAction('Add Code', lambda: HandleAddCode(None, False))  # Gotta pass the argument, so lambda time
+        deface = addMenu.addAction('Add Code', lambda: HandleAddCode(None, False))
         addMenu.addAction('Add Category', self.HandleAddCategory)
         self.addButton = QtWidgets.QToolButton()
         self.addButton.setDefaultAction(deface)  # Do this if you click the Add button instead of the arrow
@@ -41,8 +41,8 @@ class CodeList(QtWidgets.QWidget):
 
         # Sort button+menu
         sortMenu = QtWidgets.QMenu()
-        defact = sortMenu.addAction('Alphabetical', lambda: self.TreeWidget.sortItems(0, Qt.AscendingOrder))  # The unknown soldier
-        sortMenu.addAction('Alphabetical (Reverse)', lambda: self.TreeWidget.sortItems(0, Qt.DescendingOrder))  # The unknown soldier's sibiling
+        defact = sortMenu.addAction('Alphabetical', lambda: self.TreeWidget.sortItems(0, Qt.AscendingOrder))
+        sortMenu.addAction('Alphabetical (Reverse)', lambda: self.TreeWidget.sortItems(0, Qt.DescendingOrder))
         sortMenu.addAction('Size', self.SortListSize)
         self.sortButton = QtWidgets.QToolButton()
         self.sortButton.setDefaultAction(defact)  # Do this if you click the Sort button instead of the arrow
@@ -51,15 +51,15 @@ class CodeList(QtWidgets.QWidget):
         self.sortButton.setSizePolicy(QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Preferred)  # Use full widget width
         self.sortButton.setText('Sort')
 
-        # Import and Remove buttons
+        # Import, Export and Remove buttons
         self.importButton = QtWidgets.QPushButton('Import List')
-        self.importButton.clicked.connect(lambda: globalstuff.mainWindow.openCodelist(self))
         self.exportButton = QtWidgets.QPushButton('Export List')
-        self.exportButton.clicked.connect(lambda: globalstuff.mainWindow.exportList(self))
         self.removeButton = QtWidgets.QPushButton('Remove Selected')
+        self.importButton.clicked.connect(lambda: globalstuff.mainWindow.openCodelist(self))
+        self.exportButton.clicked.connect(lambda: globalstuff.mainWindow.exportList(self))
         self.removeButton.clicked.connect(self.HandleRemove)
 
-        # Configure the buttons and update the boxes
+        # Configure the buttons
         self.EnableButtons()
 
         # Game ID text field + save button
@@ -78,9 +78,9 @@ class CodeList(QtWidgets.QWidget):
         self.scrap = ''
 
         # Make a horizontal layout for these two
-        formlyt = QtWidgets.QHBoxLayout()
-        formlyt.addWidget(self.gidInput)
-        formlyt.addWidget(self.savegid)
+        hlyt = QtWidgets.QHBoxLayout()
+        hlyt.addWidget(self.gidInput)
+        hlyt.addWidget(self.savegid)
 
         # Line counter
         self.lineLabel = QtWidgets.QLabel('Lines: 2')
@@ -88,7 +88,7 @@ class CodeList(QtWidgets.QWidget):
 
         # Make a layout and set it
         lyt = QtWidgets.QGridLayout()
-        lyt.addLayout(formlyt, 0, 0, 1, 2)
+        lyt.addLayout(hlyt, 0, 0, 1, 2)
         lyt.addWidget(self.TreeWidget, 1, 0, 1, 2)
         lyt.addWidget(self.lineLabel, 2, 0, 1, 2)
         lyt.addWidget(self.addButton, 3, 0)
@@ -112,7 +112,7 @@ class CodeList(QtWidgets.QWidget):
         # Add the codes
         for item in enabledlist:
             clone = item.clone()
-            clone.setFlags(clone.flags() | Qt.ItemIsEditable)  # Gotta enable renaming, hehe.
+            clone.setFlags(clone.flags() | Qt.ItemIsEditable)  # Enable renaming
             self.TreeWidget.addTopLevelItem(clone)
             CleanChildren(clone)
 
@@ -121,13 +121,16 @@ class CodeList(QtWidgets.QWidget):
         self.UpdateLines()
 
     def HandleSelection(self):
+        """
+        Self explanatory
+        """
         SelectItems(self.TreeWidget)
         self.EnableButtons()
         self.UpdateLines()
 
     def HandleClicking(self, item: QtWidgets.QTreeWidgetItem):
         """
-        Backups up the codename and checks the buttons
+        Backs up the codename and checks the buttons
         """
         item.setStatusTip(0, item.text(0))
         self.EnableButtons()
@@ -189,18 +192,20 @@ class CodeList(QtWidgets.QWidget):
 
             # We have a destination
             if destination:
-                destination.setText(1, '\n'.join([destination.text(1), item.text(1)]))  # Merge the codes
+                # Merge the codes
+                destination.setText(1, '\n'.join([destination.text(1), item.text(1)]))
+
+                # Kill any reference to the item
                 CleanParentz(item, wlist)
                 if item.parent():
-                    item.parent().takeChild(item.parent().indexOfChild(item))  # It's a child, tell the parent to kill him
+                    item.parent().takeChild(item.parent().indexOfChild(item))
                 else:
-                    self.TreeWidget.takeTopLevelItem(self.TreeWidget.indexOfTopLevelItem(item))  # It's a parent, tell the codelist to kill him
+                    self.TreeWidget.takeTopLevelItem(self.TreeWidget.indexOfTopLevelItem(item))
 
             # It's the first code in the list, set it as destination
             else:
                 destination = item
-                destination.setText(2, '')  # Clear the comment and the placeholder lists, as they no longer apply
-                destination.setText(3, '')
+                destination.setText(2, '')  # Clear the comment, as it no longer applies
 
         # Now find all instances of CodeEditor that have the destination code open, and update their code widget
         for window in wlist:
@@ -229,10 +234,7 @@ class CodeList(QtWidgets.QWidget):
         """
         Enables the button to save the game id if it's valid
         """
-        if len(self.gidInput.text()) > 3:
-            self.savegid.setEnabled(True)
-        else:
-            self.savegid.setEnabled(False)
+        self.savegid.setEnabled(len(self.gidInput.text()) > 3)
 
     def SetGameID(self, gameid: str):
         """
@@ -242,6 +244,7 @@ class CodeList(QtWidgets.QWidget):
             self.gameID = gameid
             self.gameName = TitleLookup(gameid)
             self.gidInput.setText(gameid)
+        self.savegid.setEnabled(False)
         self.setWindowTitle('Codelist - {} [{}]'.format(self.gameName, gameid))
         globalstuff.mainWindow.updateboxes()
 

@@ -4,14 +4,14 @@ This file contains functions that are used by multiple windows to prevent duplic
 from PyQt5.Qt import Qt
 from PyQt5 import QtWidgets
 
+import globalstuff
+
 
 def GameIDMismatch():
-    msgbox = QtWidgets.QMessageBox()
-    msgbox.setWindowTitle('Game ID Mismatch')
-    msgbox.setText("The Game ID in this codelist doesn't match this file's. Do you want to continue?")
-    msgbox.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
-    ret = msgbox.exec_()
-    return ret
+    msgbox = QtWidgets.QMessageBox.question(globalstuff.mainWindow, 'Game ID Mismatch',
+                                            "The Game ID in this codelist doesn't match this file's."
+                                            "Do you want to continue?")
+    return msgbox
 
 
 def CheckChildren(item: QtWidgets.QTreeWidgetItem):
@@ -31,8 +31,7 @@ def CountCheckedCodes(source: QtWidgets.QTreeWidget, userecursive: bool):
     Returns a list of the codes currently enabled, based on certain criteria. Matchflag returns 64 if userecursive is
     False, 1 if True.
     """
-    userecursive = not userecursive
-    return filter(lambda x: bool(x.checkState(0)), source.findItems('', Qt.MatchContains | Qt.MatchFlag(64 >> 6 * userecursive)))
+    return filter(lambda x: bool(x.checkState(0)), source.findItems('', Qt.MatchContains | Qt.MatchFlag(64 >> 6 * int(not userecursive))))
 
 
 def SelectItems(source: QtWidgets.QTreeWidget):
@@ -62,3 +61,18 @@ def CleanChildren(item: QtWidgets.QTreeWidgetItem):
                 CleanChildren(child)
             elif child.checkState(0) == Qt.Unchecked:
                 item.takeChild(i)
+
+
+def AssembleCode(code: str):
+    """
+    Takes an unformatted string and adds spaces and newlines.
+    """
+    assembledcode = ''
+    for index, char in enumerate(code):
+        if not index % 16 and index:
+            assembledcode = '\n'.join([assembledcode, char.upper()])
+        elif not index % 8 and index:
+            assembledcode = ' '.join([assembledcode, char.upper()])
+        else:
+            assembledcode = ''.join([assembledcode, char.upper()])
+    return assembledcode

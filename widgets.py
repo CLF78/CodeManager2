@@ -13,7 +13,7 @@ class ModdedTreeWidget(QtWidgets.QTreeWidget):
     def __init__(self):
         super().__init__()
 
-        # Set flags
+        # Hide header, enable multiple selection and reordering, add space to the right and set edit trigger to select+click
         self.setDragDropMode(QtWidgets.QAbstractItemView.InternalMove)
         self.setHeaderHidden(True)
         self.setSelectionMode(QtWidgets.QTreeWidget.ExtendedSelection)
@@ -51,8 +51,10 @@ class ModdedTreeWidgetItem(QtWidgets.QTreeWidgetItem):
     def __init__(self, text: str, iscategory: bool, iseditable: bool):
         super().__init__()
 
+        # Set check state
         self.setCheckState(0, Qt.Unchecked)
 
+        # Set default text
         if text:
             self.setText(0, text)
         elif iscategory:
@@ -60,6 +62,7 @@ class ModdedTreeWidgetItem(QtWidgets.QTreeWidgetItem):
         else:
             self.setText(0, 'New Code')
 
+        # Set flags based on the given directives
         self.setAsCategory(iscategory)
         self.setAsEditable(iseditable)
 

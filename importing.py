@@ -11,7 +11,7 @@ from PyQt5 import QtWidgets
 from PyQt5.Qt import Qt
 
 import globalstuff
-from common import GameIDMismatch
+from common import GameIDMismatch, AssembleCode
 from codelist import CodeList
 from widgets import ModdedSubWindow, ModdedTreeWidgetItem
 
@@ -24,7 +24,7 @@ def GameIDCheck(gameid: str, codelist: CodeList):
     if codelist.gameID != gameid:
         if codelist.gameID != 'UNKW00' and GameIDMismatch() == QtWidgets.QMessageBox.No:
             return False
-        codelist.SetGameID(gameid)
+        codelist.SetGameID(gameid.upper())
     return True
 
 
@@ -34,10 +34,7 @@ def DoPreliminaryOperations(filename: str, codelist: Optional[CodeList]):
     """
     # Check if we can read the file. If not, trigger an error message.
     if not os.access(filename, os.R_OK):
-        msgbox = QtWidgets.QMessageBox()
-        msgbox.setWindowTitle('File Read Error')
-        msgbox.setText("Couldn't read file " + filename)
-        msgbox.exec_()
+        QtWidgets.QMessageBox.critical(globalstuff.mainWindow, 'File Read Error', "Couldn't read file " + filename)
         return None
 
     # If the codelist param is not set, we want to create a new window, so do that
@@ -120,17 +117,15 @@ def ImportTXT(filename: str, codelist: CodeList):
         # If the name only contains "#" characters, it represents the end of a category, so don't add it to the tree
         if not name.lstrip('#'):
             currdepth = name.count('#') - 1
-            continue
 
         # Else, create the tree item
         else:
-            newitem = ModdedTreeWidgetItem(name.lstrip('#'), False, True)
+            newitem = ModdedTreeWidgetItem(name.lstrip('#'), not(bool(code)), True)
 
-            # If it's a category, set the depth and the other flags
+            # If it's a category, set the depth and the parents key
             if not code:
                 currdepth = name.count('#')
                 parents[str(currdepth+1)] = newitem
-                newitem.setAsCategory(True)
 
             # Otherwise, it's a code, so add the code, comment and author
             else:
@@ -200,8 +195,8 @@ def ImportINI(filename: str, codelist: CodeList):
             """
             If the next line begins a section, set this line as the end of the current section, but with some limits:
             - If n > o, we're in the Gecko section. But if m is set, we're somewhere between them, so don't do anything
-            - If o < n, we're in the Gecko_Enabled section. But if p is set, we're somewhere between them, so don't do anything
-            - Finally, if o = n, it means we're in an unknown section, so don't do anything either.
+            - If n < o, we're in the Gecko_Enabled section. But if p is set, we're somewhere between them, so don't do anything
+            - Finally, if n = o, it means we're in an unknown section, so don't do anything either.
             """
             if n > o and m == length:
                 m = i
@@ -305,10 +300,7 @@ def ImportGCT(filename: str, codelist: CodeList):
                 ParseExtendedGCT(f, codelist)
         else:
             # This ain't it, chief
-            msgbox = QtWidgets.QMessageBox()
-            msgbox.setWindowTitle('Invalid file')
-            msgbox.setText('This file is invalid')
-            msgbox.exec_()
+            QtWidgets.QMessageBox.critical(globalstuff.mainWindow, 'Invalid file', 'This file is invalid')
 
 
 def ParseExtendedGCT(f: BinaryIO, codelist: CodeList):
@@ -334,10 +326,7 @@ def ParseExtendedGCT(f: BinaryIO, codelist: CodeList):
 
     # Failsafe time
     if f.tell() == filelen:
-        msgbox = QtWidgets.QMessageBox()
-        msgbox.setWindowTitle('Invalid file')
-        msgbox.setText('This file is invalid')
-        msgbox.exec_()
+        QtWidgets.QMessageBox.critical(globalstuff.mainWindow, 'Invalid file', 'This file is invalid')
         return
 
     # Now let's find the game id. Why -8 ?
@@ -369,23 +358,13 @@ def ParseExtendedGCT(f: BinaryIO, codelist: CodeList):
         codelen = int.from_bytes(f.read(4), 'big')
         nameoffs = f.tell() + int.from_bytes(f.read(4), 'big') - 8  # Offset starts at beginning of entry
         commentoffs = f.tell() + int.from_bytes(f.read(4), 'big') - 12  # Same here
-        if commentoffs < f.tell():  # If there's no comment, the value is 0, so if we subtract 12 we'll be at a smaller offset
+        if commentoffs < f.tell():  # If there's no comment the value is 0, so if we subtract 12 we'll be at a smaller offset
             commentoffs = 0
         backupoffset = f.tell()
 
         # Go to the code and read it
         f.seek(codeoffs)
-        code = f.read(codelen * 8).hex().upper()  # Convert to uppercase hex string
-
-        # Split the code with space and newlines
-        assembledcode = ''
-        for index, char in enumerate(code):
-            if not index % 16 and index:
-                assembledcode = '\n'.join([assembledcode, char])
-            elif not index % 8 and index:
-                assembledcode = ' '.join([assembledcode, char])
-            else:
-                assembledcode = ''.join([assembledcode, char])
+        code = AssembleCode(f.read(codelen * 8).hex())  # Convert to hex string and add spaces and newlines
 
         # Go to the code name and read it
         codename = ''
@@ -415,7 +394,7 @@ def ParseExtendedGCT(f: BinaryIO, codelist: CodeList):
 
         # Create the tree widget
         newitem = ModdedTreeWidgetItem(codename, False, True)
-        newitem.setText(1, assembledcode)
+        newitem.setText(1, code)
         newitem.setText(2, comment)
         newitem.setText(4, author)
         listwidget.addTopLevelItem(newitem)
@@ -463,7 +442,7 @@ def ParseGCT(filename: str, f: BinaryIO, codelist: CodeList):
 
             # Add the line. Yes PyCharm, i know newitem could be referenced before assignment, but currentcode is never
             # true when the loop begins, so shut the fuck up.
-            newitem.setText(1, newitem.text(1) + line.hex().upper())
+            newitem.setText(1, newitem.text(1) + line.hex())
 
         # It's a new code!
         else:
@@ -476,16 +455,14 @@ def ParseGCT(filename: str, f: BinaryIO, codelist: CodeList):
 
             # Create the tree widget item
             newitem = ModdedTreeWidgetItem(name, False, True)
-            newitem.setText(1, line.hex().upper())
+            newitem.setText(1, line.hex())
             finalist.append(newitem)
 
             # Check the codetype. If the line isn't listed here, it will be added as a single line if found standalone.
             # Type 06 (length specified by code, in bytes)
             if c == 6 or c == 7:
                 lines = int(line[7:].hex(), 16)
-                if lines % 8:  # This is so that half-lines are counted properly
-                    lines += 7
-                amount = lines // 8 - 1
+                amount = (lines + 7) // 8 - 1  # Add 7 to approximate up
                 currentcode = True
 
             # Type 08 (fixed length)
@@ -504,15 +481,7 @@ def ParseGCT(filename: str, f: BinaryIO, codelist: CodeList):
 
     # Add spaces and newlines to the codes, then add the items to the tree
     for item in finalist:
-        assembledcode = ''
-        for index, char in enumerate(item.text(1)):
-            if not index % 16 and index:
-                assembledcode = '\n'.join([assembledcode, char])
-            elif not index % 8 and index:
-                assembledcode = ' '.join([assembledcode, char])
-            else:
-                assembledcode = ''.join([assembledcode, char])
-        item.setText(1, assembledcode)
+        item.setText(1, AssembleCode(item.text(1)))
         globalstuff.mainWindow.CodeLookup(item, listwidget, filename)
         listwidget.addTopLevelItem(item)
 
@@ -545,15 +514,12 @@ def ImportDOL(filename: str, codelist: CodeList):
 
         # If there are no matches, it means there's no codes here for us to find
         if not sections:
-            msgbox = QtWidgets.QMessageBox()
-            msgbox.setWindowTitle('Empty DOL')
-            msgbox.setText('No GCTs were found in this file')
-            msgbox.exec_()
+            QtWidgets.QMessageBox.critical(globalstuff.mainWindow, 'Empty DOL', 'No GCTs were found in this file')
             return
 
         for section in sections:
             # Get the section offset and length
-            f.seek(4 * section)
+            f.seek(section * 4)
             sectionoffset = int(f.read(4).hex(), 16)
             f.seek(0x90 + section * 4)
             sectionend = sectionoffset + int(f.read(4).hex(), 16)
@@ -589,3 +555,7 @@ def ImportDOL(filename: str, codelist: CodeList):
 
             # Remove the file
             os.remove('tmp.gct')
+            return  # We're assuming there is only one GCT here. Who in their right mind would add more than one?!
+
+    # This is only shown if nothing is found, as otherwise the function would have already returned
+    QtWidgets.QMessageBox.critical(globalstuff.mainWindow, 'Empty DOL', 'No GCTs were found in this file')
