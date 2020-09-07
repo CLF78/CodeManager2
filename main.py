@@ -1,5 +1,5 @@
 """
-Main executable, unsurprisingly.
+Main executable, unsurprisingly. Also known as the circular import prevention junkyard.
 """
 import os
 import re
@@ -12,9 +12,11 @@ from PyQt5.Qt import Qt
 import exporting
 import importing
 import globalstuff
+from codeeditor import CodeEditor
 from codelist import CodeList
 from database import Database
 from titles import DownloadError
+from widgets import ModdedSubWindow, ModdedTreeWidgetItem
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -213,6 +215,41 @@ class MainWindow(QtWidgets.QMainWindow):
                         item.setText(2, child.text(2))  # Copy comment
                         item.setText(4, child.text(4))  # Copy author
                         return
+
+    def AddFromEditor(self, src: CodeEditor, dest: CodeList):
+        """
+        Transfers the code editor's content to a code in a codelist. If you're wondering why this is here, it's to
+        prevent circular imports. Fuck circular imports.
+        """
+        # Initialize vars
+        code = src.ParseCode()
+        comment = re.sub('\n{2,}', '\n', src.CodeComment.toPlainText())
+        author = src.CodeAuthor.text()
+
+        # Create a new codelist if dest is None
+        if not dest:
+            dest = CodeList('')
+            win = ModdedSubWindow()
+            win.setWidget(dest)
+            self.mdi.addSubWindow(win)
+            self.updateboxes()
+            win.show()
+
+        # Save the stuff
+        newitem = ModdedTreeWidgetItem(src, False, True)
+        newitem.setText(1, code)
+        newitem.setText(2, comment)
+        newitem.setText(4, author)
+
+        # Update the fields
+        src.CodeContent.setPlainText(code)
+        src.CodeComment.setPlainText(comment)
+
+        # Update window title
+        src.ParseAuthor(author)
+
+        # Add the item to the widget
+        dest.TreeWidget.addTopLevelItem(newitem)
 
 
 def main():

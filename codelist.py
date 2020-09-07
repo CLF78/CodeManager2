@@ -19,7 +19,7 @@ class CodeList(QtWidgets.QWidget):
         # Create the codelist and connect it to the handlers
         self.TreeWidget = ModdedTreeWidget()
         self.TreeWidget.itemSelectionChanged.connect(self.HandleSelection)
-        self.TreeWidget.itemDoubleClicked.connect(HandleCodeOpen)
+        self.TreeWidget.itemDoubleClicked.connect(lambda x: HandleCodeOpen(x, False))
         self.TreeWidget.itemChanged.connect(RenameWindows)
         self.TreeWidget.itemClicked.connect(self.HandleClicking)  # Using the status tip as a backup option
 
@@ -29,7 +29,7 @@ class CodeList(QtWidgets.QWidget):
 
         # Add button+menu
         addMenu = QtWidgets.QMenu()
-        deface = addMenu.addAction('Add Code', lambda: HandleAddCode(None))  # Gotta pass the argument, so lambda time
+        deface = addMenu.addAction('Add Code', lambda: HandleAddCode(None, False))  # Gotta pass the argument, so lambda time
         addMenu.addAction('Add Category', self.HandleAddCategory)
         self.addButton = QtWidgets.QToolButton()
         self.addButton.setDefaultAction(deface)  # Do this if you click the Add button instead of the arrow

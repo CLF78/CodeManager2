@@ -26,7 +26,7 @@ class Database(QtWidgets.QWidget):
         # Create the Database Browser and connect it to the handlers
         self.TreeWidget = QtWidgets.QTreeWidget()
         self.TreeWidget.itemSelectionChanged.connect(self.HandleSelection)
-        self.TreeWidget.itemDoubleClicked.connect(HandleCodeOpen)
+        self.TreeWidget.itemDoubleClicked.connect(lambda x: HandleCodeOpen(x, True))
         self.TreeWidget.itemClicked.connect(self.EnableButtons)
 
         # Set the proper flags
