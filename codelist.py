@@ -245,7 +245,7 @@ class CodeList(QtWidgets.QWidget):
             self.gameName = TitleLookup(gameid)
             self.gidInput.setText(gameid)
         self.savegid.setEnabled(False)
-        self.setWindowTitle('Codelist - {} [{}]'.format(self.gameName, gameid))
+        self.setWindowTitle('Codelist - {} [{}]'.format(self.gameName, gameid if gameid else self.gameID))
         globalstuff.mainWindow.updateboxes()
 
     def UpdateLines(self):

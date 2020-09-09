@@ -132,4 +132,5 @@ dmypy.json
 # My stuff
 old/
 .idea/
+config.ini
 wiitdb.txt

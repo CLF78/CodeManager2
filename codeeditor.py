@@ -19,6 +19,7 @@ class CodeEditor(QtWidgets.QWidget):
         # Initialize vars
         self.parentz = parent  # This is named parentz due to a name conflict
         self.fromdb = fromdb
+        self.dirty = False
         name = 'New Code'
         code = comment = author = ''
 
@@ -87,6 +88,10 @@ class CodeEditor(QtWidgets.QWidget):
         """
         Enables the save button if the code is not empty and the parent is set (otherwise we'd have nowhere to save to)
         """
+        # Add some dirt
+        self.dirty = True
+
+        # Set the buttons
         if self.CodeContent.toPlainText() and self.CodeName.text():
             if not self.fromdb:
                 self.SaveButton.setEnabled(bool(self.parentz))
@@ -94,6 +99,10 @@ class CodeEditor(QtWidgets.QWidget):
         else:
             self.SaveButton.setEnabled(False)
             self.AddButton.setEnabled(False)
+
+        # Add asterisk to window title
+        if not self.windowTitle().startswith('*'):
+            self.setWindowTitle('*' + self.windowTitle())
 
     def SaveCode(self):
         """
@@ -120,6 +129,10 @@ class CodeEditor(QtWidgets.QWidget):
         # Disable the save button
         self.SaveButton.setEnabled(False)
 
+        # Clean dirt
+        self.setWindowTitle(self.windowTitle().lstrip('*'))
+        self.dirty = False
+
     def ParseCode(self):
         """
         Parses the code to make sure it is formatted properly.
@@ -140,9 +153,22 @@ class CodeEditor(QtWidgets.QWidget):
         """
         # Update the window title
         if author:
-            self.setWindowTitle('Code Editor - {} [{}]'.format(self.name, author))
+            self.setWindowTitle('Code Editor - {} [{}]'.format(self.CodeName.text(), author))
         else:
-            self.setWindowTitle('Code Editor - {}'.format(self.name))
+            self.setWindowTitle('Code Editor - {}'.format(self.CodeName.text()))
+
+    def closeEvent(self, e: QtGui.QCloseEvent):
+        """
+        Overrides close event to ask the user if they want to save.
+        """
+        if self.dirty:
+            msgbox = QtWidgets.QMessageBox.question(self, 'Unsaved Changes', "The code has unsaved changes in it. Save?")
+            if msgbox == QtWidgets.QMessageBox.Yes:
+                if self.parentz and not self.fromdb:
+                    self.SaveCode()
+                else:
+                    globalstuff.mainWindow.AddFromEditor(self, None)
+        super().closeEvent(e)
 
 
 def HandleCodeOpen(item: QtWidgets.QTreeWidgetItem, fromdb: bool, willcreate=True):

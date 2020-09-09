@@ -41,7 +41,7 @@ class ModdedTreeWidget(QtWidgets.QTreeWidget):
                 clone = item.clone()
                 clone.setFlags(clone.flags() | Qt.ItemIsEditable)
                 self.addTopLevelItem(clone)
-        QtWidgets.QTreeWidget.dropEvent(self, e)  # Call the original function
+        super().dropEvent(e)  # Call the original function
 
 
 class ModdedTreeWidgetItem(QtWidgets.QTreeWidgetItem):
@@ -90,5 +90,5 @@ class ModdedSubWindow(QtWidgets.QMdiSubWindow):
         self.setAttribute(Qt.WA_DeleteOnClose)
 
     def closeEvent(self, e: QtGui.QCloseEvent):
-        QtWidgets.QMdiSubWindow.closeEvent(self, e)
+        super().closeEvent(e)
         globalstuff.mainWindow.updateboxes()

@@ -1,12 +1,13 @@
 """
 Main executable, unsurprisingly. Also known as the circular import prevention junkyard.
 """
+import configparser
 import os
 import re
 import sys
 from typing import Optional
 
-from PyQt5 import QtWidgets
+from PyQt5 import QtWidgets, QtGui
 from PyQt5.Qt import Qt
 
 import exporting
@@ -15,6 +16,7 @@ import globalstuff
 from codeeditor import CodeEditor
 from codelist import CodeList
 from database import Database
+from options import SettingsWidget, DarkPalette, readconfig, writeconfig
 from titles import DownloadError
 from widgets import ModdedSubWindow, ModdedTreeWidgetItem
 
@@ -60,6 +62,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.optgct = exportopts.addAction('GCT', lambda: self.exportMultiple('gct'))
         self.opttxt = exportopts.addAction('TXT', lambda: self.exportMultiple('txt'))
         self.optini = exportopts.addAction('INI', lambda: self.exportMultiple('ini'))
+
+        opts = bar.addMenu('Settings')
+        opts.addAction('Options', lambda: SettingsWidget().exec_())
 
         # Update the menu
         self.updateboxes()
@@ -230,7 +235,7 @@ class MainWindow(QtWidgets.QMainWindow):
             win.show()
 
         # Save the stuff
-        newitem = ModdedTreeWidgetItem(src, False, True)
+        newitem = ModdedTreeWidgetItem(src.CodeName.text(), False, True)
         newitem.setText(1, code)
         newitem.setText(2, comment)
         newitem.setText(4, author)
@@ -242,15 +247,60 @@ class MainWindow(QtWidgets.QMainWindow):
         # Update window title
         src.ParseAuthor(author)
 
+        # Remove the dirt
+        src.dirty = False
+        src.setWindowTitle(src.windowTitle().lstrip('*'))
+
         # Add the item to the widget
         dest.TreeWidget.addTopLevelItem(newitem)
 
+    def closeEvent(self, e: QtGui.QCloseEvent):
+        """
+        Overrides the close event to warn the user of opened lists/codes.
+        """
+        # Check if the warning is disabled and that we have any code list/editor open
+        if not globalstuff.nowarn and len([w for w in self.mdi.subWindowList() if isinstance(w.widget(), CodeList) or isinstance(w.widget(), CodeEditor)]):
+
+            # Raise awareness!
+            msgbox = QtWidgets.QMessageBox()
+            cb = QtWidgets.QCheckBox("Don't show this again")
+            msgbox.setIcon(QtWidgets.QMessageBox.Question)
+            msgbox.setWindowTitle('Opened Codes')
+            msgbox.setText('Some codes are still open, are you sure you want to close?')
+            msgbox.setStandardButtons(QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
+            msgbox.setCheckBox(cb)
+            ret = msgbox.exec_()
+
+            # Update warning disable parameter
+            globalstuff.nowarn = bool(cb.checkState())
+
+            # Act in accordance to the user's choice
+            if ret == QtWidgets.QMessageBox.No:
+                e.ignore()
+                return
+        e.accept()
+
 
 def main():
+
+    # Load config
+    config = configparser.ConfigParser()
+    readconfig(config)
+
     # Start the application
-    app = QtWidgets.QApplication(sys.argv)
+    globalstuff.app = QtWidgets.QApplication(sys.argv)
+
+    # Execute
     globalstuff.mainWindow = MainWindow()
-    ret = app.exec_()
+
+    # Set style
+    if globalstuff.theme == 'dark':
+        globalstuff.app.setPalette(DarkPalette())
+
+    ret = globalstuff.app.exec_()
+
+    # Update config
+    writeconfig(config)
 
     # Quit the process
     sys.exit(ret)

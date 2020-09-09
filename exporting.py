@@ -150,7 +150,7 @@ def ExportINI(filename: str, source: CodeList, silent: bool):
     if len(geckoenabledstr) > 16:
         f.write(geckoenabledstr)
 
-    # Autosaved data was found, ask the user what they want to do with it.
+    # Autosaved data was found, ask the user what they want to do with it. The warning is fake as per usual.
     if source.scrap:
         if not silent:
             msgbox = QtWidgets.QMessageBox.question(globalstuff.mainWindow, 'Additional Data Found',
