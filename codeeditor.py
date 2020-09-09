@@ -6,10 +6,10 @@ import re
 from typing import Optional
 
 from PyQt5 import QtGui, QtWidgets
-from PyQt5.Qt import Qt
 
 import globalstuff
 from common import AssembleCode
+from widgets import ModdedSubWindow
 
 
 class CodeEditor(QtWidgets.QWidget):
@@ -65,9 +65,9 @@ class CodeEditor(QtWidgets.QWidget):
 
         # Set the window title
         if author:
-            self.setWindowTitle('Code Editor - {} [{}]'.format(name, author))
+            self.setWindowTitle('Code Editor - {} [{}]'.format(name, author).replace('\n', ''))
         else:
-            self.setWindowTitle('Code Editor - {}'.format(name))
+            self.setWindowTitle('Code Editor - {}'.format(name).replace('\n', ''))
 
         # Make a layout and set it
         lyt = QtWidgets.QGridLayout()
@@ -153,9 +153,9 @@ class CodeEditor(QtWidgets.QWidget):
         """
         # Update the window title
         if author:
-            self.setWindowTitle('Code Editor - {} [{}]'.format(self.CodeName.text(), author))
+            self.setWindowTitle('Code Editor - {} [{}]'.format(self.CodeName.text(), author).replace('\n', ''))
         else:
-            self.setWindowTitle('Code Editor - {}'.format(self.CodeName.text()))
+            self.setWindowTitle('Code Editor - {}'.format(self.CodeName.text()).replace('\n', ''))
 
     def closeEvent(self, e: QtGui.QCloseEvent):
         """
@@ -189,9 +189,8 @@ def HandleAddCode(item: Optional[QtWidgets.QTreeWidgetItem], fromdb: bool):
     """
     Opens an empty CodeEditor sub-window.
     """
-    win = QtWidgets.QMdiSubWindow()
+    win = ModdedSubWindow(False)
     win.setWidget(CodeEditor(item, fromdb))
-    win.setAttribute(Qt.WA_DeleteOnClose)
     globalstuff.mainWindow.mdi.addSubWindow(win)
     globalstuff.mainWindow.updateboxes()
     win.show()
@@ -223,7 +222,7 @@ def RenameWindows(item: QtWidgets.QTreeWidgetItem):
         if isinstance(w.widget(), CodeEditor) and w.widget().parentz == item:
             w.widget().CodeName.setText(item.text(0))
             if item.text(4):
-                w.widget().setWindowTitle('Code Editor - {} [{}]'.format(item.text(0), item.text(4)))
+                w.widget().setWindowTitle('Code Editor - {} [{}]'.format(item.text(0), item.text(4)).replace('\n', ''))
             else:
-                w.widget().setWindowTitle('Code Editor - {}'.format(item.text(0)))
+                w.widget().setWindowTitle('Code Editor - {}'.format(item.text(0)).replace('\n', ''))
             return

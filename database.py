@@ -75,7 +75,7 @@ class Database(QtWidgets.QWidget):
         except:
             self.gameID = 'UNKW00'  # Failsafe
             self.gameName = 'Unknown Game'
-        self.setWindowTitle('Database Browser - {} [{}]'.format(self.gameName, self.gameID))
+        self.setWindowTitle('Database Browser - {} [{}]'.format(self.gameName, self.gameID).replace('\n', ''))
 
         # Add the update url
         try:
@@ -154,7 +154,7 @@ class Database(QtWidgets.QWidget):
         if self.Combox.currentIndex() > 0:
             self.Combox.currentData().AddFromDatabase(enabledlist, self.gameID)
         else:
-            win = ModdedSubWindow()
+            win = ModdedSubWindow(True)
             win.setWidget(CodeList(''))
             globalstuff.mainWindow.mdi.addSubWindow(win)
             win.widget().AddFromDatabase(enabledlist, self.gameID)

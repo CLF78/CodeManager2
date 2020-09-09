@@ -5,7 +5,6 @@ import configparser
 import os
 
 from PyQt5 import QtWidgets
-from PyQt5.QtGui import QPalette, QColor
 from PyQt5.Qt import Qt
 
 import globalstuff
@@ -53,9 +52,9 @@ class SettingsWidget(QtWidgets.QDialog):
     def HandleThemeChoose(self, index: int):
         globalstuff.theme = self.Theme.itemText(index).lower()
         if globalstuff.theme == 'dark':
-            globalstuff.app.setPalette(DarkPalette())
+            SetDarkPalette()
         else:
-            globalstuff.app.setPalette(DefaultPalette())
+            SetLightPalette()
 
 
 def readconfig(config: configparser.ConfigParser, file='config.ini'):
@@ -82,51 +81,43 @@ def writeconfig(config: configparser.ConfigParser, file='config.ini'):
         config.write(file)
 
 
-def DarkPalette():
+def SetDarkPalette():
     """
     Does all the changes required for dark mode.
     """
-
     # Set style to fusion
     globalstuff.app.setStyle('Fusion')
 
-    QSS = """
-    QMdiSubWindow:title { background: #000000 }
-    """
-
-    # Set mdi area bg and stylesheet
-    globalstuff.app.setStyleSheet(QSS)
+    # Set mdi area bg
     globalstuff.mainWindow.mdi.setBackground(Qt.darkGray)
 
-    # Generate the palette
-    darkpal = QPalette()
-    darkpal.setColor(QPalette.Window, QColor(53, 53, 53))
-    darkpal.setColor(QPalette.WindowText, Qt.white)
-    darkpal.setColor(QPalette.Base, QColor(25, 25, 25))
-    darkpal.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
-    darkpal.setColor(QPalette.ToolTipBase, Qt.white)
-    darkpal.setColor(QPalette.ToolTipText, Qt.white)
-    darkpal.setColor(QPalette.Text, Qt.white)
-    darkpal.setColor(QPalette.Button, QColor(53, 53, 53))
-    darkpal.setColor(QPalette.ButtonText, Qt.white)
-    darkpal.setColor(QPalette.BrightText, Qt.red)
-    darkpal.setColor(QPalette.Link, QColor(42, 130, 218))
-    darkpal.setColor(QPalette.Highlight, QColor(42, 130, 218))
-    darkpal.setColor(QPalette.HighlightedText, Qt.black)
-    return darkpal
+    # Set palette
+    globalstuff.app.setPalette(globalstuff.darkpal)
+    for window in globalstuff.mainWindow.mdi.subWindowList():
+        window.widget().setPalette(globalstuff.textpal)
+
+    # Force stylesheet on menu bar because it doesn't want to cooperate
+    qss = """
+    QMenu::item { color: white }
+    QMenu::item:disabled { color: transparent }
+    """
+    globalstuff.mainWindow.menuBar().setStyleSheet(qss)
 
 
-def DefaultPalette():
+def SetLightPalette():
     """
     Resets the default palette.
     """
-
     # Set style to the first element of keys, which should be OS-specific
     globalstuff.app.setStyle(QtWidgets.QStyleFactory.keys()[0])
 
-    # Reset mdi area bg and remove the stylesheet
-    globalstuff.app.setStyleSheet('')
+    # Reset mdi area bg
     globalstuff.mainWindow.mdi.setBackground(Qt.gray)
 
-    # Return palette
-    return globalstuff.app.style().standardPalette()
+    # Reset palette
+    globalstuff.app.setPalette(globalstuff.app.style().standardPalette())
+    for window in globalstuff.mainWindow.mdi.subWindowList():
+        window.widget().setPalette(globalstuff.app.style().standardPalette())
+
+    # Reset menu bar stylesheet
+    globalstuff.mainWindow.menuBar().setStyleSheet('')

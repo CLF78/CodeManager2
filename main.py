@@ -16,7 +16,7 @@ import globalstuff
 from codeeditor import CodeEditor
 from codelist import CodeList
 from database import Database
-from options import SettingsWidget, DarkPalette, readconfig, writeconfig
+from options import SettingsWidget, SetDarkPalette, readconfig, writeconfig
 from titles import DownloadError
 from widgets import ModdedSubWindow, ModdedTreeWidgetItem
 
@@ -75,9 +75,8 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         name = QtWidgets.QFileDialog.getOpenFileName(self, 'Open Database', '', 'Code Database (*.xml)')[0]
         if name:
-            win = QtWidgets.QMdiSubWindow()
+            win = ModdedSubWindow(False)
             win.setWidget(Database(name))
-            win.setAttribute(Qt.WA_DeleteOnClose)
             self.mdi.addSubWindow(win)
             self.updateboxes()
             win.show()
@@ -228,7 +227,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Create a new codelist if dest is None
         if not dest:
             dest = CodeList('')
-            win = ModdedSubWindow()
+            win = ModdedSubWindow(True)
             win.setWidget(dest)
             self.mdi.addSubWindow(win)
             self.updateboxes()
@@ -249,7 +248,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Remove the dirt
         src.dirty = False
-        src.setWindowTitle(src.windowTitle().lstrip('*'))
+        src.setWindowTitle(src.windowTitle().lstrip('*').replace('\n', ''))
 
         # Add the item to the widget
         dest.TreeWidget.addTopLevelItem(newitem)
@@ -289,14 +288,13 @@ def main():
 
     # Start the application
     globalstuff.app = QtWidgets.QApplication(sys.argv)
-
-    # Execute
     globalstuff.mainWindow = MainWindow()
 
-    # Set style
+    # Apply theme if dark mode is enabled
     if globalstuff.theme == 'dark':
-        globalstuff.app.setPalette(DarkPalette())
+        SetDarkPalette()
 
+    # Execute
     ret = globalstuff.app.exec_()
 
     # Update config

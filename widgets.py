@@ -83,12 +83,22 @@ class ModdedTreeWidgetItem(QtWidgets.QTreeWidgetItem):
 
 class ModdedSubWindow(QtWidgets.QMdiSubWindow):
     """
-    I just needed to run a function when a closeEvent is triggered, so there we go.
+    Dark mode and box updating functionality.
     """
-    def __init__(self):
+    def __init__(self, islist: bool):
         super().__init__()
+        self.islist = islist
         self.setAttribute(Qt.WA_DeleteOnClose)
+
+    def setWidget(self, widget: QtWidgets.QWidget):
+        """
+        Adds a fix for dark theme if it's enabled
+        """
+        super().setWidget(widget)
+        if globalstuff.theme == 'dark':
+            self.widget().setPalette(globalstuff.textpal)
 
     def closeEvent(self, e: QtGui.QCloseEvent):
         super().closeEvent(e)
-        globalstuff.mainWindow.updateboxes()
+        if self.islist:
+            globalstuff.mainWindow.updateboxes()
