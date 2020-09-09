@@ -6,7 +6,7 @@ from PyQt5 import QtWidgets
 from PyQt5.Qt import Qt
 
 import globalstuff
-from codeeditor import CodeEditor, HandleCodeOpen, HandleAddCode, CleanParentz, RenameWindows
+from codeeditor import CodeEditor, HandleCodeOpen, CleanParentz, RenameWindows
 from common import CountCheckedCodes, SelectItems, GameIDMismatch, CleanChildren
 from titles import TitleLookup
 from widgets import ModdedTreeWidget, ModdedTreeWidgetItem
@@ -29,7 +29,7 @@ class CodeList(QtWidgets.QWidget):
 
         # Add button+menu
         addMenu = QtWidgets.QMenu()
-        deface = addMenu.addAction('Add Code', lambda: HandleAddCode(None, False))
+        deface = addMenu.addAction('Add Code', lambda: globalstuff.mainWindow.CreateNewWindow(CodeEditor(None, False)))
         addMenu.addAction('Add Category', self.HandleAddCategory)
         self.addButton = QtWidgets.QToolButton()
         self.addButton.setDefaultAction(deface)  # Do this if you click the Add button instead of the arrow

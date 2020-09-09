@@ -39,11 +39,7 @@ def DoPreliminaryOperations(filename: str, codelist: Optional[CodeList]):
 
     # If the codelist param is not set, we want to create a new window, so do that
     if not codelist:
-        win = ModdedSubWindow(True)
-        win.setWidget(CodeList(''))
-        globalstuff.mainWindow.mdi.addSubWindow(win)
-        win.show()
-        return win.widget()
+        return globalstuff.mainWindow.CreateNewWindow(CodeList(''))
     return codelist
 
 

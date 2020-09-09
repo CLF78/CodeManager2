@@ -41,3 +41,18 @@ darkpal.setColor(QPalette.HighlightedText, Qt.black)
 
 # Empty icon for sub windows
 empty = None
+
+# Stylesheet for TreeWidgets because Qt sucks
+treeqss = """
+QTreeView::indicator:unchecked { border: 1px solid #C0C0C0 }
+QTreeView::item { color: #FFFFFF }
+"""
+
+# Stylesheet for Options Menu, also because Qt sucks
+checkqss = """
+QCheckBox::indicator:unchecked { border: 1px solid #C0C0C0 }
+QComboBox::item { color: #FFFFFF }
+"""
+
+# Program icon
+progico = None

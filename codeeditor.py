@@ -9,7 +9,6 @@ from PyQt5 import QtGui, QtWidgets
 
 import globalstuff
 from common import AssembleCode
-from widgets import ModdedSubWindow
 
 
 class CodeEditor(QtWidgets.QWidget):
@@ -182,18 +181,7 @@ def HandleCodeOpen(item: QtWidgets.QTreeWidgetItem, fromdb: bool, willcreate=Tru
                 globalstuff.mainWindow.mdi.setActiveSubWindow(window)  # This code was already opened, so let's just set the focus on the existing window
                 break
         if willcreate:  # If the code is not already open, go ahead and do it
-            HandleAddCode(item, fromdb)
-
-
-def HandleAddCode(item: Optional[QtWidgets.QTreeWidgetItem], fromdb: bool):
-    """
-    Opens an empty CodeEditor sub-window.
-    """
-    win = ModdedSubWindow(False)
-    win.setWidget(CodeEditor(item, fromdb))
-    globalstuff.mainWindow.mdi.addSubWindow(win)
-    globalstuff.mainWindow.updateboxes()
-    win.show()
+            globalstuff.mainWindow.CreateNewWindow(CodeEditor(item, fromdb))
 
 
 def CleanParentz(item: QtWidgets.QTreeWidgetItem, wlist: list):

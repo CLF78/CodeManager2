@@ -5,3 +5,7 @@ A revamped version of the Ocarina Code Manager
 * chardet
 * lxml
 * PyQt5
+
+# Credits
+* Seeky and tZ for bearing with me through the entirety of development
+* Cryoma for the icon

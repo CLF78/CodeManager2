@@ -97,7 +97,10 @@ class ModdedSubWindow(QtWidgets.QMdiSubWindow):
         """
         super().setWidget(widget)
         if globalstuff.theme == 'dark':
-            self.widget().setPalette(globalstuff.textpal)
+            w = self.widget()
+            w.setPalette(globalstuff.textpal)
+            if hasattr(w, 'TreeWidget'):
+                w.TreeWidget.setStyleSheet(globalstuff.treeqss)
 
     def closeEvent(self, e: QtGui.QCloseEvent):
         super().closeEvent(e)

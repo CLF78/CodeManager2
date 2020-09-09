@@ -16,7 +16,7 @@ from codelist import CodeList
 from codeeditor import CodeEditor, HandleCodeOpen, CleanParentz
 from common import CountCheckedCodes, SelectItems
 from titles import TitleLookup
-from widgets import ModdedTreeWidgetItem, ModdedSubWindow
+from widgets import ModdedTreeWidgetItem
 
 
 class Database(QtWidgets.QWidget):
@@ -154,11 +154,8 @@ class Database(QtWidgets.QWidget):
         if self.Combox.currentIndex() > 0:
             self.Combox.currentData().AddFromDatabase(enabledlist, self.gameID)
         else:
-            win = ModdedSubWindow(True)
-            win.setWidget(CodeList(''))
-            globalstuff.mainWindow.mdi.addSubWindow(win)
-            win.widget().AddFromDatabase(enabledlist, self.gameID)
-            win.show()
+            win = globalstuff.mainWindow.CreateNewWindow(CodeList(''))
+            win.AddFromDatabase(enabledlist, self.gameID)
 
     def UpdateDatabase(self):
         """

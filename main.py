@@ -75,11 +75,7 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         name = QtWidgets.QFileDialog.getOpenFileName(self, 'Open Database', '', 'Code Database (*.xml)')[0]
         if name:
-            win = ModdedSubWindow(False)
-            win.setWidget(Database(name))
-            self.mdi.addSubWindow(win)
-            self.updateboxes()
-            win.show()
+            self.CreateNewWindow(Database(name))
 
     def openCodelist(self, source: Optional[QtWidgets.QTreeWidget]):
         """
@@ -176,7 +172,11 @@ class MainWindow(QtWidgets.QMainWindow):
                 if item.parentWidget() not in self.mdi.subWindowList():
                     window.Combox.removeItem(i)
                 else:
-                    entries.remove(item)
+                    # Sometimes this fails, so i added an except because i'm lame
+                    try:
+                        entries.remove(item)
+                    except ValueError:
+                        continue
 
             # Add the remaining windows if they meet the condition
             for entry in entries:
@@ -226,12 +226,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Create a new codelist if dest is None
         if not dest:
-            dest = CodeList('')
-            win = ModdedSubWindow(True)
-            win.setWidget(dest)
-            self.mdi.addSubWindow(win)
-            self.updateboxes()
-            win.show()
+            dest = self.CreateNewWindow(CodeList(''))
 
         # Save the stuff
         newitem = ModdedTreeWidgetItem(src.CodeName.text(), False, True)
@@ -279,6 +274,15 @@ class MainWindow(QtWidgets.QMainWindow):
                 return
         e.accept()
 
+    def CreateNewWindow(self, widget: QtWidgets.QWidget):
+        win = ModdedSubWindow(isinstance(widget, CodeList))
+        win.setWidget(widget)
+        self.mdi.addSubWindow(win)
+        if hasattr(widget, 'Combox'):
+            self.updateboxes()
+        win.show()
+        return widget
+
 
 def main():
 
@@ -294,6 +298,10 @@ def main():
     icon = QtGui.QPixmap(1, 1)
     icon.fill(Qt.transparent)
     globalstuff.empty = QtGui.QIcon(icon)
+
+    # Add the program icon
+    globalstuff.progico = QtGui.QIcon('icon.ico')
+    globalstuff.mainWindow.setWindowIcon(globalstuff.progico)
 
     # Apply theme if dark mode is enabled
     if globalstuff.theme == 'dark':

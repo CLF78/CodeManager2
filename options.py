@@ -46,6 +46,9 @@ class SettingsWidget(QtWidgets.QDialog):
         self.setLayout(L)
         self.setWindowTitle('Settings')
 
+        if globalstuff.theme == 'dark':
+            self.setStyleSheet(globalstuff.checkqss)
+
     def HandleNoWarn(self, state: int):
         globalstuff.nowarn = bool(state)
 
@@ -53,8 +56,10 @@ class SettingsWidget(QtWidgets.QDialog):
         globalstuff.theme = self.Theme.itemText(index).lower()
         if globalstuff.theme == 'dark':
             SetDarkPalette()
+            self.setStyleSheet(globalstuff.checkqss)
         else:
             SetLightPalette()
+            self.setStyleSheet('')
 
 
 def readconfig(config: configparser.ConfigParser, file='config.ini'):
@@ -95,6 +100,8 @@ def SetDarkPalette():
     globalstuff.app.setPalette(globalstuff.darkpal)
     for window in globalstuff.mainWindow.mdi.subWindowList():
         window.widget().setPalette(globalstuff.textpal)
+        if hasattr(window.widget(), 'TreeWidget'):
+            window.widget().TreeWidget.setStyleSheet(globalstuff.treeqss)
 
     # Force stylesheet on menu bar because it doesn't want to cooperate
     qss = """
@@ -118,6 +125,8 @@ def SetLightPalette():
     globalstuff.app.setPalette(globalstuff.app.style().standardPalette())
     for window in globalstuff.mainWindow.mdi.subWindowList():
         window.widget().setPalette(globalstuff.app.style().standardPalette())
+        if hasattr(window.widget(), 'TreeWidget'):
+            window.widget().TreeWidget.setStyleSheet('')
 
     # Reset menu bar stylesheet
     globalstuff.mainWindow.menuBar().setStyleSheet('')
