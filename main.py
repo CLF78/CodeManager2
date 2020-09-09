@@ -290,6 +290,11 @@ def main():
     globalstuff.app = QtWidgets.QApplication(sys.argv)
     globalstuff.mainWindow = MainWindow()
 
+    # Add the empty icon
+    icon = QtGui.QPixmap(1, 1)
+    icon.fill(Qt.transparent)
+    globalstuff.empty = QtGui.QIcon(icon)
+
     # Apply theme if dark mode is enabled
     if globalstuff.theme == 'dark':
         SetDarkPalette()

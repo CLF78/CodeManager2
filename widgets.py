@@ -88,6 +88,7 @@ class ModdedSubWindow(QtWidgets.QMdiSubWindow):
     def __init__(self, islist: bool):
         super().__init__()
         self.islist = islist
+        self.setWindowIcon(globalstuff.empty)
         self.setAttribute(Qt.WA_DeleteOnClose)
 
     def setWidget(self, widget: QtWidgets.QWidget):
