@@ -53,7 +53,7 @@ def ImportTXT(filename: str, codelist: CodeList):
         return
 
     # Initialize vars
-    linerule = re.compile('^(\* )?[\w]{8} [\w]{8}', re.I)
+    linerule = re.compile('^(\* )?[\w]{8} [\w]{8}$', re.I)
     unkcount = 1  # Used for codes without names
     currdepth = 0  # Current depth, used for sub-categories
     parents = {'0': None}  # This dict stores the parent for each level. Not the best solution, but it gets the job done.
@@ -74,7 +74,7 @@ def ImportTXT(filename: str, codelist: CodeList):
     if 4 <= len(gameid) <= 6:
         if not GameIDCheck(gameid, codelist):
             return
-        rawdata.pop(0)  # Remove the parsed group
+    rawdata.pop(0)  # Remove the parsed group
 
     # Begin parsing codes
     for group in rawdata:
