@@ -119,28 +119,30 @@ class MainWindow(QtWidgets.QMainWindow):
         # Get destination and codelists
         dest = QtWidgets.QFileDialog.getExistingDirectory(self, 'Save all Codelists to', '', QtWidgets.QFileDialog.ShowDirsOnly)
         success = total = 0
+        overwrite = False
 
         # Do the thing
-        for window in filter(lambda x: isinstance(x.widget(), CodeList), self.mdi.subWindowList()):
+        if dest:
+            for window in filter(lambda x: isinstance(x.widget(), CodeList), self.mdi.subWindowList()):
 
-            # Initialize vars
-            filename = os.path.join(dest, '.'.join([window.widget().gameID, ext]))
-            i = 2
+                # Initialize vars
+                filename = os.path.join(dest, '.'.join([window.widget().gameID, ext]))
+                i = 2
 
-            # Check that the file doesn't exist, if so bump up the number
-            while os.path.isfile(filename):
-                filename = os.path.join(dest, '{}_{}.{}'.format(window.widget().gameID, i, ext))
-                i += 1
+                # Check that the file doesn't exist, if so bump up the number
+                while os.path.isfile(filename):
+                    filename = os.path.join(dest, '{}_{}.{}'.format(window.widget().gameID, i, ext))
+                    i += 1
 
-            # Choose the correct function based on the provided extension
-            func = getattr(exporting, 'Export' + ext.upper(), None)
-            if func:
-                success += func(filename, window.widget(), True)
-            total += 1
+                # Choose the correct function based on the provided extension
+                func = getattr(exporting, 'Export' + ext.upper(), None)
+                if func:
+                    success += func(filename, window.widget(), True)
+                total += 1
 
-        # Inform the user
-        if success:
-            QtWidgets.QMessageBox.information(self, 'Export Complete', '{}/{} lists exported successfully!'.format(success, total))
+            # Inform the user
+            if success:
+                QtWidgets.QMessageBox.information(self, 'Export Complete', '{}/{} lists exported successfully!'.format(success, total))
 
     def updateboxes(self):
         """
@@ -199,7 +201,8 @@ class MainWindow(QtWidgets.QMainWindow):
             regmatch = int(not(bool(widget.gameID == gid))) + 1
 
             # Process the widget's tree
-            for child in filter(lambda x: x.text(1), widget.TreeWidget.findItems('', Qt.MatchContains | Qt.MatchRecursive)):
+            for child in filter(lambda x: x.text(1) and 'Unknown Code' not in x.text(0),
+                                widget.TreeWidget.findItems('', Qt.MatchContains | Qt.MatchRecursive)):
                 matches = 0
 
                 # For each code, check each line of the code we're looking a name for

@@ -137,7 +137,7 @@ class CodeEditor(QtWidgets.QWidget):
         Parses the code to make sure it is formatted properly.
         """
         # Remove spaces and new lines
-        code = re.sub('[ \n]', '', self.CodeContent.toPlainText())
+        code = re.sub('[* \n]', '', self.CodeContent.toPlainText())
 
         # Add padding if the code is not a multiple of 16
         while len(code) % 16:

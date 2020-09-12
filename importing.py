@@ -70,7 +70,7 @@ def ImportTXT(filename: str, codelist: CodeList):
     rawdata = rawdata.decode(detect(rawdata)['encoding'], 'ignore').split(os.linesep * 2)
 
     # The first group contains the gameid, so check it with regex and set it if it's valid
-    gameid = rawdata[0].splitlines()[0]
+    gameid = rawdata[0].splitlines()[0].strip()
     if 4 <= len(gameid) <= 6:
         if not GameIDCheck(gameid, codelist):
             return
@@ -155,6 +155,7 @@ def ImportTXT(filename: str, codelist: CodeList):
 
     # Finally, trigger the buttons in the codelist
     codelist.EnableButtons()
+    codelist.UpdateLines()
 
 
 def ImportINI(filename: str, codelist: CodeList):
@@ -271,6 +272,7 @@ def ImportINI(filename: str, codelist: CodeList):
 
     # Finally, trigger the buttons in the codelist
     codelist.EnableButtons()
+    codelist.UpdateLines()
 
 
 def ImportGCT(filename: str, codelist: CodeList):
