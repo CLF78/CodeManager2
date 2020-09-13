@@ -13,7 +13,7 @@ from widgets import ModdedTreeWidget, ModdedTreeWidgetItem
 
 
 class CodeList(QtWidgets.QWidget):
-    def __init__(self, wintitle):
+    def __init__(self, wintitle: str = None):
         super().__init__()
 
         # Create the codelist and connect it to the handlers
@@ -26,11 +26,14 @@ class CodeList(QtWidgets.QWidget):
         # Merge button, up here for widget height purposes
         self.mergeButton = QtWidgets.QPushButton('Merge Selected')
         self.mergeButton.clicked.connect(lambda: self.HandleMerge(CountCheckedCodes(self.TreeWidget, True)))
+        #self.mergeButton.setShortcut('Ctrl+M')
 
         # Add button+menu
         addMenu = QtWidgets.QMenu()
-        deface = addMenu.addAction('Add Code', lambda: globalstuff.mainWindow.CreateNewWindow(CodeEditor(None, False)))
-        addMenu.addAction('Add Category', self.HandleAddCategory)
+        deface = addMenu.addAction('Add Code', lambda: globalstuff.mainWindow.CreateNewWindow(CodeEditor()))
+        #deface.setShortcut('Ctrl+N')
+        ace2 = addMenu.addAction('Add Category', self.HandleAddCategory)
+        #ace2.setShortcut('Ctrl+Shift+N')
         self.addButton = QtWidgets.QToolButton()
         self.addButton.setDefaultAction(deface)  # Do this if you click the Add button instead of the arrow
         self.addButton.setFixedHeight(self.mergeButton.sizeHint().height())  # Makes this the same height as QPushButton
@@ -58,6 +61,9 @@ class CodeList(QtWidgets.QWidget):
         self.importButton.clicked.connect(lambda: globalstuff.mainWindow.openCodelist(self))
         self.exportButton.clicked.connect(lambda: globalstuff.mainWindow.exportList(self))
         self.removeButton.clicked.connect(self.HandleRemove)
+        #self.importButton.setShortcut('Ctrl+I')
+        #self.exportButton.setShortcut('Ctrl+E')
+        self.removeButton.setShortcut(Qt.Key_Delete)
 
         # Configure the buttons
         self.EnableButtons()
@@ -74,7 +80,7 @@ class CodeList(QtWidgets.QWidget):
         # Set game id, game name and update the window title accordingly. Also add the scrap
         self.gameID = 'UNKW00'
         self.gameName = 'Unknown Game'
-        self.SetGameID(wintitle)
+        self.SetGameID(wintitle if wintitle else '')
         self.scrap = ''
 
         # Make a horizontal layout for these two
@@ -245,7 +251,7 @@ class CodeList(QtWidgets.QWidget):
             self.gameName = TitleLookup(gameid)
             self.gidInput.setText(gameid)
         self.savegid.setEnabled(False)
-        self.setWindowTitle('Codelist - {} [{}]'.format(self.gameName, gameid if gameid else self.gameID).replace('\n', ''))
+        self.setWindowTitle('Codelist - {} [{}]'.format(self.gameName, gameid if gameid else self.gameID))
         globalstuff.mainWindow.updateboxes()
 
     def UpdateLines(self):

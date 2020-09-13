@@ -13,7 +13,7 @@ from PyQt5.Qt import Qt
 import globalstuff
 from common import GameIDMismatch, AssembleCode
 from codelist import CodeList
-from widgets import ModdedSubWindow, ModdedTreeWidgetItem
+from widgets import ModdedTreeWidgetItem
 
 
 def GameIDCheck(gameid: str, codelist: CodeList):
@@ -39,7 +39,7 @@ def DoPreliminaryOperations(filename: str, codelist: Optional[CodeList]):
 
     # If the codelist param is not set, we want to create a new window, so do that
     if not codelist:
-        return globalstuff.mainWindow.CreateNewWindow(CodeList(''))
+        return globalstuff.mainWindow.CreateNewWindow(CodeList())
     return codelist
 
 

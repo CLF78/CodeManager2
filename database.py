@@ -5,7 +5,6 @@ import os
 import shutil
 import urllib.request
 from pkg_resources import parse_version as vercomp
-from typing import Optional
 
 from lxml import etree
 from PyQt5 import QtWidgets
@@ -75,7 +74,7 @@ class Database(QtWidgets.QWidget):
         except:
             self.gameID = 'UNKW00'  # Failsafe
             self.gameName = 'Unknown Game'
-        self.setWindowTitle('Database Browser - {} [{}]'.format(self.gameName, self.gameID).replace('\n', ''))
+        self.setWindowTitle('Database Browser - {} [{}]'.format(self.gameName, self.gameID))
 
         # Add the update url
         try:
@@ -89,9 +88,9 @@ class Database(QtWidgets.QWidget):
         self.UpdateButton.setEnabled(bool(self.updateURL))
 
         # Import the codes (the second tree is because there can be codes without a category)
-        self.ParseDatabase(tree.xpath('category') + tree.xpath('code'), None)
+        self.ParseDatabase(tree.xpath('category') + tree.xpath('code'))
 
-    def ParseDatabase(self, tree: etree, parent: Optional[QtWidgets.QTreeWidgetItem]):
+    def ParseDatabase(self, tree: etree, parent: QtWidgets.QTreeWidgetItem = None):
         """
         Recursively create the code tree based on the xml
         """
@@ -154,7 +153,7 @@ class Database(QtWidgets.QWidget):
         if self.Combox.currentIndex() > 0:
             self.Combox.currentData().AddFromDatabase(enabledlist, self.gameID)
         else:
-            win = globalstuff.mainWindow.CreateNewWindow(CodeList(''))
+            win = globalstuff.mainWindow.CreateNewWindow(CodeList())
             win.AddFromDatabase(enabledlist, self.gameID)
 
     def UpdateDatabase(self):
@@ -198,7 +197,7 @@ class Database(QtWidgets.QWidget):
 
         # Clear the tree and import the codes
         self.TreeWidget.clear()
-        self.ParseDatabase(tree.xpath('category') + tree.xpath('code'), None)
+        self.ParseDatabase(tree.xpath('category') + tree.xpath('code'))
 
         # Overwrite the original file and disable the update button, since we no longer need it.
         shutil.move('tmp.xml', self.dbfile)

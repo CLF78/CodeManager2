@@ -17,6 +17,7 @@ class SettingsWidget(QtWidgets.QDialog):
         # Disable the "?" button and resizing
         self.setWindowFlag(Qt.WindowContextHelpButtonHint, False)
         self.setFixedSize(self.minimumSize())
+        self.setWindowIcon(globalstuff.progico)
 
         # Initialize some variables
         themelist = ['Default', 'Dark']

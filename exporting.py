@@ -92,7 +92,7 @@ def ExportTXT(filename: str, source: CodeList, silent: bool):
     enabledlist = source.TreeWidget.findItems('', Qt.MatchContains)
 
     # Write the game id and name
-    f.write('\n'.join([source.gameID, source.gameName, '']))
+    f.write('\n'.join([source.gameID, source.gameName, '', '']))
 
     # Write the codes!
     WriteItems(f, enabledlist, 0)

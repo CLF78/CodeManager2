@@ -3,7 +3,6 @@ The CodeEditor is a relatively simple window which shows a code, its name, autho
 and open it with other windows, or add it to different lists.
 """
 import re
-from typing import Optional
 
 from PyQt5 import QtGui, QtWidgets
 
@@ -12,12 +11,12 @@ from common import AssembleCode
 
 
 class CodeEditor(QtWidgets.QWidget):
-    def __init__(self, parent: Optional[QtWidgets.QTreeWidgetItem], fromdb: bool):
+    def __init__(self, parent: QtWidgets.QTreeWidgetItem = None, fromdb: bool = None):
         super().__init__()
 
         # Initialize vars
         self.parentz = parent  # This is named parentz due to a name conflict
-        self.fromdb = fromdb
+        self.fromdb = fromdb if fromdb else False
         self.dirty = False
         name = 'New Code'
         code = comment = author = ''
@@ -64,9 +63,9 @@ class CodeEditor(QtWidgets.QWidget):
 
         # Set the window title
         if author:
-            self.setWindowTitle('Code Editor - {} [{}]'.format(name, author).replace('\n', ''))
+            self.setWindowTitle('Code Editor - {} [{}]'.format(name, author))
         else:
-            self.setWindowTitle('Code Editor - {}'.format(name).replace('\n', ''))
+            self.setWindowTitle('Code Editor - {}'.format(name))
 
         # Make a layout and set it
         lyt = QtWidgets.QGridLayout()
@@ -152,21 +151,21 @@ class CodeEditor(QtWidgets.QWidget):
         """
         # Update the window title
         if author:
-            self.setWindowTitle('Code Editor - {} [{}]'.format(self.CodeName.text(), author).replace('\n', ''))
+            self.setWindowTitle('Code Editor - {} [{}]'.format(self.CodeName.text(), author))
         else:
-            self.setWindowTitle('Code Editor - {}'.format(self.CodeName.text()).replace('\n', ''))
+            self.setWindowTitle('Code Editor - {}'.format(self.CodeName.text()))
 
     def closeEvent(self, e: QtGui.QCloseEvent):
         """
         Overrides close event to ask the user if they want to save.
         """
         if self.dirty:
-            msgbox = QtWidgets.QMessageBox.question(self, 'Unsaved Changes', "The code has unsaved changes in it. Save?")
+            msgbox = QtWidgets.QMessageBox.question(globalstuff.mainWindow, 'Unsaved Changes', "The code has unsaved changes in it. Save?")
             if msgbox == QtWidgets.QMessageBox.Yes:
                 if self.parentz and not self.fromdb:
                     self.SaveCode()
                 else:
-                    globalstuff.mainWindow.AddFromEditor(self, None)
+                    globalstuff.mainWindow.AddFromEditor(self)
         super().closeEvent(e)
 
 
@@ -210,7 +209,7 @@ def RenameWindows(item: QtWidgets.QTreeWidgetItem):
         if isinstance(w.widget(), CodeEditor) and w.widget().parentz == item:
             w.widget().CodeName.setText(item.text(0))
             if item.text(4):
-                w.widget().setWindowTitle('Code Editor - {} [{}]'.format(item.text(0), item.text(4)).replace('\n', ''))
+                w.widget().setWindowTitle('Code Editor - {} [{}]'.format(item.text(0), item.text(4)))
             else:
-                w.widget().setWindowTitle('Code Editor - {}'.format(item.text(0)).replace('\n', ''))
+                w.widget().setWindowTitle('Code Editor - {}'.format(item.text(0)))
             return

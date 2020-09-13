@@ -106,3 +106,34 @@ class ModdedSubWindow(QtWidgets.QMdiSubWindow):
         super().closeEvent(e)
         if self.islist:
             globalstuff.mainWindow.updateboxes()
+
+
+class ModdedMdiArea(QtWidgets.QMdiArea):
+    """
+    Modded MdiArea to accept file drops
+    """
+    def __init__(self):
+        super().__init__()
+        self.setAcceptDrops(True)
+
+    def dragEnterEvent(self, e: QtGui.QDragEnterEvent):
+        if e.mimeData().hasUrls:
+            e.accept()
+        else:
+            e.ignore()
+
+    def dragMoveEvent(self, e: QtGui.QDragMoveEvent):
+        if e.mimeData().hasUrls:
+            e.setDropAction(Qt.CopyAction)
+            e.accept()
+        else:
+            e.ignore()
+
+    def dropEvent(self, e: QtGui.QDropEvent):
+        if e.mimeData().hasUrls():
+            e.setDropAction(Qt.CopyAction)
+            e.accept()
+            links = [str(url.toLocalFile()) for url in e.mimeData().urls()]
+            globalstuff.mainWindow.openCodelist(None, links)
+        else:
+            e.ignore()

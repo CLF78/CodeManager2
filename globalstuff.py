@@ -1,6 +1,9 @@
 """
 Fuck globals, all my homies hate globals
 """
+import os
+import sys
+
 from PyQt5.QtGui import QPalette, QColor
 from PyQt5.Qt import Qt
 
@@ -9,7 +12,7 @@ app = None
 mainWindow = None
 
 # Wii Title Database
-wiitdb = 'wiitdb.txt'
+wiitdb = os.path.join(os.path.dirname(sys.argv[0]), 'wiitdb.txt')
 
 # GCT specific data
 gctmagic = b'\0\xd0\xc0\xde' * 2
@@ -38,6 +41,7 @@ darkpal.setColor(QPalette.BrightText, Qt.red)
 darkpal.setColor(QPalette.Link, QColor(42, 130, 218))
 darkpal.setColor(QPalette.Highlight, QColor(42, 130, 218))
 darkpal.setColor(QPalette.HighlightedText, Qt.black)
+darkpal.setColor(QPalette.Disabled, QPalette.ButtonText, Qt.darkGray)
 
 # Empty icon for sub windows
 empty = None

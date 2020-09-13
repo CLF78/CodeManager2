@@ -39,7 +39,7 @@ def TitleLookup(gid: str):
                 try:  # Read the line, split it and check the game id. If it matches, return the game name
                     line = next(f).decode('utf-8', 'ignore').split(' = ')
                     if line[0].lower() == gid.lower():
-                        return line[1]
+                        return line[1].rstrip('\r\n')
                 except StopIteration:  # We've reached EOF
                     return 'Unknown Game'
     else:

@@ -5,7 +5,6 @@ import configparser
 import os
 import re
 import sys
-from typing import Optional
 
 from PyQt5 import QtWidgets, QtGui
 from PyQt5.Qt import Qt
@@ -18,7 +17,8 @@ from codelist import CodeList
 from database import Database
 from options import SettingsWidget, SetDarkPalette, readconfig, writeconfig
 from titles import DownloadError
-from widgets import ModdedSubWindow, ModdedTreeWidgetItem
+from widgets import ModdedSubWindow, ModdedTreeWidgetItem, ModdedMdiArea
+from windowstuff import TileVertical, TileHorizontal, MinimizeAll, CloseAll, Half
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -26,12 +26,16 @@ class MainWindow(QtWidgets.QMainWindow):
         super().__init__()
 
         # Create the interface
-        self.mdi = QtWidgets.QMdiArea()
+        self.mdi = ModdedMdiArea()
         self.setCentralWidget(self.mdi)
 
         # Create the menubar
         self.optgct = self.optini = self.opttxt = None
         self.createMenubar()
+
+        # Add the program icon
+        globalstuff.progico = QtGui.QIcon('icon.ico')
+        self.setWindowIcon(globalstuff.progico)
 
         # Set window title and show the window maximized
         self.setWindowTitle('Code Manager Reborn')
@@ -49,22 +53,53 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # File Menu
         file = bar.addMenu('File')
-        file.addAction('Exit', self.close)
+
+        # New
+        newmenu = file.addMenu('New')
+        newmenu.addAction('New Codelist', lambda: self.CreateNewWindow(CodeList()))
+        newmenu.addAction('New Code', lambda: self.CreateNewWindow(CodeEditor()))
 
         # Import menu
-        imports = bar.addMenu('Import')
+        imports = file.addMenu('Import')
+        imports.addAction('Import Codelist', self.openCodelist)
         imports.addAction('Import Database', self.openDatabase)
-        imports.addAction('Import Codelist', lambda: self.openCodelist(None))
 
         # Export menu
-        exports = bar.addMenu('Export')
-        exportopts = exports.addMenu('Export All Lists To')
-        self.optgct = exportopts.addAction('GCT', lambda: self.exportMultiple('gct'))
-        self.opttxt = exportopts.addAction('TXT', lambda: self.exportMultiple('txt'))
-        self.optini = exportopts.addAction('INI', lambda: self.exportMultiple('ini'))
+        exports = file.addMenu('Export All')
+        self.optgct = exports.addAction('GCT', lambda: self.exportMultiple('gct'))
+        self.opttxt = exports.addAction('TXT', lambda: self.exportMultiple('txt'))
+        self.optini = exports.addAction('INI', lambda: self.exportMultiple('ini'))
+        file.addSeparator()
 
-        opts = bar.addMenu('Settings')
-        opts.addAction('Options', lambda: SettingsWidget().exec_())
+        # Settings
+        file.addAction('Options', lambda: SettingsWidget().exec_())
+
+        # Exit
+        file.addAction('Exit', self.close)
+
+        # Window Menu
+        ws = bar.addMenu('Windows')
+
+        # Half menu
+        half = ws.addMenu('Half')
+        half.addAction('Left', Half)
+        half.addAction('Right', lambda: Half(True))
+        ws.addSeparator()
+
+        # Tile menu
+        tile = ws.addMenu('Tile')
+        tile.addAction('Horizontal', TileHorizontal)
+        tile.addAction('Vertical', TileVertical)
+        ws.addSeparator()
+
+        # Automatic arrangements
+        ws.addAction('Arrange', self.mdi.tileSubWindows)
+        ws.addAction('Cascade', self.mdi.cascadeSubWindows)
+        ws.addSeparator()
+
+        # Mass minimize/close
+        ws.addAction('Minimize All', MinimizeAll)
+        ws.addAction('Close All', CloseAll)
 
         # Update the menu
         self.updateboxes()
@@ -77,16 +112,17 @@ class MainWindow(QtWidgets.QMainWindow):
         if name:
             self.CreateNewWindow(Database(name))
 
-    def openCodelist(self, source: Optional[QtWidgets.QTreeWidget]):
+    def openCodelist(self, source: QtWidgets.QTreeWidget = None, files: list = None):
         """
         Opens a QFileDialog to import a file
         """
-        files = QtWidgets.QFileDialog.getOpenFileNames(self, 'Open Files', '',
-                                                       'All supported formats (*.txt *.ini *.gct *.dol);;'
-                                                       'Text File (*.txt);;'
-                                                       'Dolphin INI (*.ini);;'
-                                                       'Gecko Code Table (*.gct);;'
-                                                       'Dolphin Executable (*.dol)')[0]
+        if not files:
+            files = QtWidgets.QFileDialog.getOpenFileNames(self, 'Open Files', '',
+                                                           'All supported formats (*.txt *.ini *.gct *.dol);;'
+                                                           'Text File (*.txt);;'
+                                                           'Dolphin INI (*.ini);;'
+                                                           'Gecko Code Table (*.gct);;'
+                                                           'Dolphin Executable (*.dol)')[0]
 
         # Run the correct function based on the chosen format
         for file in files:
@@ -119,7 +155,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # Get destination and codelists
         dest = QtWidgets.QFileDialog.getExistingDirectory(self, 'Save all Codelists to', '', QtWidgets.QFileDialog.ShowDirsOnly)
         success = total = 0
-        overwrite = False
+        overwrite = permanent = False
 
         # Do the thing
         if dest:
@@ -129,16 +165,38 @@ class MainWindow(QtWidgets.QMainWindow):
                 filename = os.path.join(dest, '.'.join([window.widget().gameID, ext]))
                 i = 2
 
-                # Check that the file doesn't exist, if so bump up the number
-                while os.path.isfile(filename):
-                    filename = os.path.join(dest, '{}_{}.{}'.format(window.widget().gameID, i, ext))
-                    i += 1
+                # If the file already exists, ask the user what to do
+                if os.path.isfile(filename) and not permanent:
+                    msgbox = QtWidgets.QMessageBox(self)
+                    msgbox.setIcon(QtWidgets.QMessageBox.Question)
+                    msgbox.setWindowTitle('Overwrite file?')
+                    msgbox.setText(os.path.basename(filename) + ' already exists. Overwrite?')
+                    msgbox.setStandardButtons(QtWidgets.QMessageBox.YesToAll | QtWidgets.QMessageBox.Yes |
+                                              QtWidgets.QMessageBox.No | QtWidgets.QMessageBox.NoToAll |
+                                              QtWidgets.QMessageBox.Ignore)
+                    ret = msgbox.exec_()
+
+                    # If the user presses ignore, skip writing, else set the flags
+                    if ret == QtWidgets.QMessageBox.Ignore:
+                        continue
+                    overwrite = ret <= QtWidgets.QMessageBox.YesToAll
+                    permanent = ret == QtWidgets.QMessageBox.YesToAll or ret == QtWidgets.QMessageBox.NoToAll
+
+                # If we don't want to overwrite, check that the file doesn't exist and if so bump up the number
+                if not overwrite:
+                    while os.path.isfile(filename):
+                        filename = os.path.join(dest, '{}_{}.{}'.format(window.widget().gameID, i, ext))
+                        i += 1
 
                 # Choose the correct function based on the provided extension
                 func = getattr(exporting, 'Export' + ext.upper(), None)
                 if func:
                     success += func(filename, window.widget(), True)
                 total += 1
+
+                # Reset overwrite flag is permanent is not active
+                if not permanent:
+                    overwrite = False
 
             # Inform the user
             if success:
@@ -217,7 +275,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         item.setText(4, child.text(4))  # Copy author
                         return
 
-    def AddFromEditor(self, src: CodeEditor, dest: CodeList):
+    def AddFromEditor(self, src: CodeEditor, dest: CodeList = None):
         """
         Transfers the code editor's content to a code in a codelist. If you're wondering why this is here, it's to
         prevent circular imports. Fuck circular imports.
@@ -229,7 +287,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Create a new codelist if dest is None
         if not dest:
-            dest = self.CreateNewWindow(CodeList(''))
+            dest = self.CreateNewWindow(CodeList())
 
         # Save the stuff
         newitem = ModdedTreeWidgetItem(src.CodeName.text(), False, True)
@@ -246,7 +304,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Remove the dirt
         src.dirty = False
-        src.setWindowTitle(src.windowTitle().lstrip('*').replace('\n', ''))
+        src.setWindowTitle(src.windowTitle().lstrip('*'))
 
         # Add the item to the widget
         dest.TreeWidget.addTopLevelItem(newitem)
@@ -259,7 +317,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if not globalstuff.nowarn and len([w for w in self.mdi.subWindowList() if isinstance(w.widget(), CodeList) or isinstance(w.widget(), CodeEditor)]):
 
             # Raise awareness!
-            msgbox = QtWidgets.QMessageBox()
+            msgbox = QtWidgets.QMessageBox(self)
             cb = QtWidgets.QCheckBox("Don't show this again")
             msgbox.setIcon(QtWidgets.QMessageBox.Question)
             msgbox.setWindowTitle('Opened Codes')
@@ -281,8 +339,7 @@ class MainWindow(QtWidgets.QMainWindow):
         win = ModdedSubWindow(isinstance(widget, CodeList))
         win.setWidget(widget)
         self.mdi.addSubWindow(win)
-        if hasattr(widget, 'Combox'):
-            self.updateboxes()
+        self.updateboxes()
         win.show()
         return widget
 
@@ -302,9 +359,10 @@ def main():
     icon.fill(Qt.transparent)
     globalstuff.empty = QtGui.QIcon(icon)
 
-    # Add the program icon
-    globalstuff.progico = QtGui.QIcon('icon.ico')
-    globalstuff.mainWindow.setWindowIcon(globalstuff.progico)
+    # Open codelists passed through the shell
+    flist = [file for file in sys.argv[1:] if os.path.isfile(file)]
+    if flist:
+        globalstuff.mainWindow.openCodelist(None, flist)
 
     # Apply theme if dark mode is enabled
     if globalstuff.theme == 'dark':
