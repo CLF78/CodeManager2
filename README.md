@@ -1,11 +1,12 @@
 # Code Manager Reborn
 A revamped version of the Ocarina Code Manager
 
-# Required Modules
+# Source
+To run from source, these modules are required:
 * chardet
 * lxml
 * PyQt5
 
-# Credits
-* Seeky and tZ for bearing with me through the entirety of development
+# Special Thanks
+* Seeky, tZ and Brawlboxgaming for bearing with me through the entirety of development
 * Cryoma for the icon
