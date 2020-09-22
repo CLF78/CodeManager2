@@ -40,7 +40,6 @@ darkpal.setColor(QPalette.ButtonText, Qt.white)
 darkpal.setColor(QPalette.BrightText, Qt.red)
 darkpal.setColor(QPalette.Link, QColor(42, 130, 218))
 darkpal.setColor(QPalette.Highlight, QColor(42, 130, 218))
-darkpal.setColor(QPalette.HighlightedText, Qt.black)
 darkpal.setColor(QPalette.Disabled, QPalette.ButtonText, Qt.darkGray)
 
 # Empty icon for sub windows
