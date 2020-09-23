@@ -5,6 +5,7 @@ import os
 import re
 from itertools import chain
 from typing import Optional, BinaryIO
+from struct import unpack
 
 from chardet import detect
 from PyQt5 import QtWidgets
@@ -56,7 +57,7 @@ def ImportTXT(filename: str, codelist: CodeList):
     linerule = re.compile('^(\* )?[\w]{8} [\w]{8}$', re.I)
     unkcount = 1  # Used for codes without names
     currdepth = 0  # Current depth, used for sub-categories
-    parents = {'0': None}  # This dict stores the parent for each level. Not the best solution, but it gets the job done.
+    parents = {0: None}  # This dict stores the parent for each level. Not the best solution, but it gets the job done.
 
     # Set the tree widget
     listwidget = codelist.TreeWidget
@@ -121,7 +122,7 @@ def ImportTXT(filename: str, codelist: CodeList):
             # If it's a category, set the depth and the parents key
             if not code:
                 currdepth = name.count('#')
-                parents[str(currdepth+1)] = newitem
+                parents[currdepth+1] = newitem
 
             # Otherwise, it's a code, so add the code, comment and author
             else:
@@ -139,7 +140,7 @@ def ImportTXT(filename: str, codelist: CodeList):
 
             # Set the item's parent. If there's a key error, don't do anything. Gotta stay safe.
             try:
-                parent = parents[str(currdepth)]
+                parent = parents[currdepth]
             except KeyError:
                 pass
 
@@ -330,7 +331,7 @@ def ParseExtendedGCT(f: BinaryIO, codelist: CodeList):
     # Now let's find the game id. Why -8 ?
     # First, the offset is according to the entry's beginning (aka the game name which was skipped)
     # Second, the seek needs to be re-adjusted due to the read operation
-    f.seek(int.from_bytes(f.read(4), 'big')-8, 1)
+    f.seek(unpack('I', f.read(4))-8, 1)
 
     # Get the string
     gameid = ''
@@ -347,15 +348,15 @@ def ParseExtendedGCT(f: BinaryIO, codelist: CodeList):
     # Read the amount of codes
     f.seek(backupoffset)  # Go back
     f.seek(4, 1)
-    amount = int.from_bytes(f.read(4), 'big')
+    amount = unpack('I', f.read(4))
 
     # Begin reading codes!
     while amount > 0:
         # Read the offsets
-        codeoffs = int.from_bytes(f.read(4), 'big')
-        codelen = int.from_bytes(f.read(4), 'big')
-        nameoffs = f.tell() + int.from_bytes(f.read(4), 'big') - 8  # Offset starts at beginning of entry
-        commentoffs = f.tell() + int.from_bytes(f.read(4), 'big') - 12  # Same here
+        codeoffs = unpack('I', f.read(4))
+        codelen = unpack('I', f.read(4))
+        nameoffs = f.tell() + unpack('I', f.read(4)) - 8  # Offset starts at beginning of entry
+        commentoffs = f.tell() + unpack('I', f.read(4)) - 12  # Same here
         if commentoffs < f.tell():  # If there's no comment the value is 0, so if we subtract 12 we'll be at a smaller offset
             commentoffs = 0
         backupoffset = f.tell()
